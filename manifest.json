@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.4.2",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.4.2.zip",
+  "version": "0.4.3",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.4.3.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Product photo doubled in size; color-swatch spacing cut in half."
+  "changelog": "Per-shirt estimate is now quantity-tiered, so changing quantities in step 1 updates the price in step 2. Placeholder tiers — replace with real numbers."
 }

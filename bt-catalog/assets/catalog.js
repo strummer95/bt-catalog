@@ -259,10 +259,20 @@
   }
   document.getElementById('btScrim').addEventListener('click', closeDrawer);
 
-  function pricePer(){ // simple estimate: base + decoration per location
+  function decoPerPiece(qty){
+    // Per-piece decoration cost for ONE location, by quantity tier (ESTIMATE — tune these).
+    var t;
+    if      (qty < 12)  t = (method==='print') ? 6.00 : 8.00;
+    else if (qty < 24)  t = (method==='print') ? 4.50 : 6.50;
+    else if (qty < 48)  t = (method==='print') ? 3.50 : 5.50;
+    else if (qty < 100) t = (method==='print') ? 2.75 : 4.50;
+    else if (qty < 250) t = (method==='print') ? 2.25 : 4.00;
+    else                t = (method==='print') ? 1.75 : 3.50;
+    return t + (locs - 1) * (t * 0.7);   // each extra location ~70% of the first
+  }
+  function pricePer(){ // garment base + quantity-tiered decoration
     var base = quote.length ? quote[0].price : 0;
-    var deco = method==='print' ? (3 + (locs-1)*2.5) : (5 + (locs-1)*3);
-    return base + deco;
+    return base + decoPerPiece(totalQty());
   }
   function totalQty(){ return quote.reduce(function(a,l){return a+l.qty;},0); }
 
