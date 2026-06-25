@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.3.8",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.3.8.zip",
+  "version": "0.3.9",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.3.9.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Color swatches now use S&S real fabric swatch photos (hex fallback). Main product image shrunk to a small square. Note: re-import a style to pull its swatch photos."
+  "changelog": "My Quote button moved inline above the search bar. Product page now shows Sizes & quantity above Color."
 }

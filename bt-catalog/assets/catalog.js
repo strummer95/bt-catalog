@@ -50,6 +50,7 @@
       '<h1>Pick your blank. Get a <span>quote.</span></h1>' +
       '<p>Browse every garment we print &amp; stitch, build your sizes, and send it to our quote desk.</p>' +
     '</div></section>' +
+    '<div class="wrap"><div style="display:flex;justify-content:flex-end;padding:12px 0 2px"><button id="btFab" class="btcat-fab">My Quote \u00b7 <span id="btBadge">0</span></button></div></div>' +
     '<div class="wrap"><div class="catnav">' +
       '<nav class="cmenus">' +
         '<div class="cm"><span class="cmlabel">Brands <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mBrands"></div></div>' +
@@ -65,14 +66,13 @@
     '</main></div>' +
     '<div id="btPdp" class="pdp" style="display:none"></div>' +
     '<div id="btDrawer" class="drawer" style="display:none"></div>' +
-    '<div id="btScrim" class="scrim" style="display:none;position:fixed;inset:0;z-index:75;background:rgba(0,0,0,.45)"></div>' +
-    '<button id="btFab" class="btcat-fab">My Quote \u00b7 <span id="btBadge">0</span></button>';
+    '<div id="btScrim" class="scrim" style="display:none;position:fixed;inset:0;z-index:75;background:rgba(0,0,0,.45)"></div>';
 
-  // FAB styling (in case the page CSS doesn't carry it)
+  // Quote button styling (inline, above the search bar)
   var fab = document.getElementById('btFab');
-  fab.style.cssText = 'position:fixed;bottom:22px;right:22px;z-index:70;background:#e535ab;color:#fff;border:0;' +
-    'font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:15px;padding:13px 20px;' +
-    'border-radius:30px;box-shadow:0 6px 18px rgba(0,0,0,.28);cursor:pointer';
+  fab.style.cssText = 'background:#e535ab;color:#fff;border:0;' +
+    'font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:14px;padding:9px 18px;' +
+    'border-radius:8px;box-shadow:0 2px 8px rgba(229,53,171,.3);cursor:pointer';
   fab.addEventListener('click', openDrawer);
 
   /* ---------- menus ---------- */
@@ -175,9 +175,9 @@
           '<div class="priceNote">Per-piece retail before decoration. Final price comes back on your quote.</div>' +
           '<div class="desc">'+(p.desc||'')+'</div>' +
           '<ul class="specs">'+ specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +
+          '<div class="lab">Sizes &amp; quantity</div><div class="sizegrid" id="btSizes"></div>' +
           '<div class="lab">Color <span id="btColorName" style="color:#8a8aa0;text-transform:none;letter-spacing:0"></span></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
-          '<div class="lab">Sizes &amp; quantity</div><div class="sizegrid" id="btSizes"></div>' +
           '<button class="addbtn" id="btAdd">Add to Quote</button>' +
         '</div></div></div>';
       pdp.className = 'pdp open';
