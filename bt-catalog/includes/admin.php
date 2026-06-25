@@ -39,15 +39,15 @@ function bt_cat_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
     }
 
-    // Save update URL (merge — preserves credentials).
+    // Save update source (merge — preserves credentials).
     if (isset($_POST['bt_cat_save_upd'])) {
         check_admin_referer('bt_cat_upd');
         $o = get_option('bt_cat_settings', array());
         if (!is_array($o)) $o = array();
-        $o['update_url'] = esc_url_raw(wp_unslash($_POST['update_url']));
+        $o['gh_repo'] = sanitize_text_field(wp_unslash($_POST['gh_repo']));
         update_option('bt_cat_settings', $o);
         if (function_exists('bt_cat_force_update_check')) bt_cat_force_update_check();
-        echo '<div class="notice notice-success is-dismissible"><p>Update URL saved.</p></div>';
+        echo '<div class="notice notice-success is-dismissible"><p>Update source saved.</p></div>';
     }
 
     // Force an update check.
@@ -156,14 +156,14 @@ function bt_cat_admin_page() {
 
         <hr style="margin:28px 0">
         <h2>Updates</h2>
-        <p class="description">The plugin checks this URL for new versions and shows “Update Now” on the Plugins screen — no re-uploading. Paste your <code>manifest.json</code> URL and Save, then use “Check now”.</p>
+        <p class="description">Updates come from this GitHub repo via the API — instant, no waiting, no re-uploading. New version shows “Update Now” on the Plugins screen.</p>
         <form method="post">
             <?php wp_nonce_field('bt_cat_upd'); ?>
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><label for="update_url">Update manifest URL</label></th>
-                    <td><input id="update_url" name="update_url" type="text" value="<?php echo esc_attr(bt_cat_opt('update_url', 'https://raw.githubusercontent.com/strummer95/bt-catalog/main/manifest.json')); ?>" class="large-text">
-                        <p class="description">Current installed version: <strong><?php echo esc_html(BT_CAT_VERSION); ?></strong></p></td>
+                    <th scope="row"><label for="gh_repo">GitHub repo</label></th>
+                    <td><input id="gh_repo" name="gh_repo" type="text" value="<?php echo esc_attr(bt_cat_opt('gh_repo', 'strummer95/bt-catalog')); ?>" class="regular-text" placeholder="owner/repo">
+                        <p class="description">Installed version: <strong><?php echo esc_html(BT_CAT_VERSION); ?></strong></p></td>
                 </tr>
             </table>
             <p>

@@ -1,34 +1,38 @@
 <?php
 /**
- * BT Catalog — self-updater.
+ * BT Catalog — self-updater (GitHub API, no CDN delay).
  *
- * Checks a manifest JSON (hosted wherever you point it) for a higher version,
- * then WordPress shows "Update Now" on the Plugins screen — in-place, no
- * upload/delete. The manifest URL is set on the BT Catalog settings page.
- *
- * manifest.json shape:
- * { "name":"BT Catalog", "version":"0.3.3",
- *   "download_url":"https://.../bt-update/bt-catalog.zip",
- *   "homepage":"https://boomerts.com", "tested":"6.6", "changelog":"..." }
+ * Reads manifest.json through the GitHub *API* (api.github.com), which reflects
+ * a push immediately — unlike raw.githubusercontent.com, which is cached ~5 min.
+ * Each release ships a uniquely-named zip so its download URL is never stale.
  */
 if (!defined('ABSPATH')) exit;
 
-function bt_cat_update_url() {
-    $u = bt_cat_opt('update_url');
-    return $u !== '' ? $u : 'https://raw.githubusercontent.com/strummer95/bt-catalog/main/manifest.json';
+function bt_cat_gh_repo() {
+    $r = bt_cat_opt('gh_repo');
+    return $r !== '' ? $r : 'strummer95/bt-catalog';
 }
 
-/** Cache the manifest briefly so we don't hammer the host on every admin load. */
+/** Read the manifest through the GitHub API (instant; reflects latest push). */
 function bt_cat_update_manifest() {
     $cached = get_transient('bt_cat_manifest');
     if ($cached !== false) return $cached;
-    $resp = wp_remote_get(bt_cat_update_url(), array('timeout' => 10, 'headers' => array('Accept' => 'application/json')));
+
+    $url  = 'https://api.github.com/repos/' . bt_cat_gh_repo() . '/contents/manifest.json';
+    $resp = wp_remote_get($url, array(
+        'timeout' => 10,
+        'headers' => array(
+            'Accept'     => 'application/vnd.github.raw',
+            'User-Agent' => 'BT-Catalog-Updater',
+        ),
+    ));
+
     $info = array();
     if (!is_wp_error($resp) && (int) wp_remote_retrieve_response_code($resp) === 200) {
         $j = json_decode(wp_remote_retrieve_body($resp), true);
         if (is_array($j)) $info = $j;
     }
-    set_transient('bt_cat_manifest', $info, 6 * HOUR_IN_SECONDS);
+    set_transient('bt_cat_manifest', $info, 30 * MINUTE_IN_SECONDS);
     return $info;
 }
 
@@ -38,7 +42,7 @@ function bt_cat_push_update($transient) {
     $info = bt_cat_update_manifest();
     if (empty($info['version']) || empty($info['download_url'])) return $transient;
 
-    $file = plugin_basename(BT_CAT_FILE);   // bt-catalog/bt-catalog.php
+    $file = plugin_basename(BT_CAT_FILE);
     if (version_compare($info['version'], BT_CAT_VERSION, '>')) {
         $transient->response[$file] = (object) array(
             'slug'        => 'bt-catalog',
@@ -52,13 +56,11 @@ function bt_cat_push_update($transient) {
     return $transient;
 }
 
-/** Force a fresh check (used by the "Check now" link). */
 function bt_cat_force_update_check() {
     delete_transient('bt_cat_manifest');
     delete_site_transient('update_plugins');
 }
 
-/** "View details" popup content. */
 add_filter('plugins_api', 'bt_cat_update_info', 20, 3);
 function bt_cat_update_info($res, $action, $args) {
     if ($action !== 'plugin_information' || empty($args->slug) || $args->slug !== 'bt-catalog') return $res;
