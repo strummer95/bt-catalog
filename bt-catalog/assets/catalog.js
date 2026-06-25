@@ -151,7 +151,7 @@
           '<div class="pstyle">Style '+esc(p.style)+'</div>' +
           '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>' +
           '<div class="priceNote">Per-piece retail before decoration. Final price comes back on your quote.</div>' +
-          '<p class="desc">'+esc(p.desc)+'</p>' +
+          '<div class="desc">'+(p.desc||'')+'</div>' +
           '<ul class="specs">'+ specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +
           '<div class="lab">Color <span id="btColorName" style="color:#8a8aa0;text-transform:none;letter-spacing:0"></span></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
@@ -176,13 +176,13 @@
     var box = document.getElementById('btColors2');
     box.innerHTML = p.colors.map(function(c){
       var sel = c.name === currentColor ? ' sel' : '';
-      var sw = c.hex ? 'background:#'+c.hex.replace('#','') : 'background:#ddd';
-      return '<div class="swatch'+sel+'" data-c="'+esc(c.name)+'"><span class="sw" style="'+sw+'"></span><span class="swn">'+esc(c.name)+'</span></div>';
+      var hex = c.hex ? ('#' + String(c.hex).replace('#','')) : '#dddddd';
+      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><span class="csq" style="background:'+hex+'"></span><span class="clabel">'+esc(c.name)+'</span></div>';
     }).join('');
     setColorName();
-    box.querySelectorAll('.swatch').forEach(function(s){ s.addEventListener('click', function(){
+    box.querySelectorAll('.copt').forEach(function(s){ s.addEventListener('click', function(){
       currentColor = s.getAttribute('data-c');
-      box.querySelectorAll('.swatch').forEach(function(x){ x.classList.remove('sel'); });
+      box.querySelectorAll('.copt').forEach(function(x){ x.classList.remove('sel'); });
       s.classList.add('sel'); setColorName(); swapImage();
     }); });
     swapImage();
@@ -198,7 +198,7 @@
   function renderSizes(p){
     var sizes = p.sizes && p.sizes.length ? p.sizes : ['S','M','L','XL','2XL'];
     document.getElementById('btSizes').innerHTML = sizes.map(function(z){
-      return '<div class="sizecell"><span class="szl">'+esc(z)+'</span><input type="number" min="0" value="0" data-sz="'+esc(z)+'"></div>';
+      return '<div class="sizebox"><div class="sz">'+esc(z)+'</div><input type="number" min="0" value="0" data-sz="'+esc(z)+'"></div>';
     }).join('');
   }
 
