@@ -1,0 +1,180 @@
+<?php
+/**
+ * BT Catalog — full-catalog sync engine.
+ *
+ * One-time pull of every S&S style, run in rate-limited batches so it never
+ * times out and stays under the 60-calls/minute API cap. Self-running:
+ *   - WP-Cron fires a batch each minute while a sync is active
+ *   - the admin progress page also nudges batches via admin-ajax while open
+ *   - when the queue is empty it unschedules itself and stops (no recurring sync)
+ */
+if (!defined('ABSPATH')) exit;
+
+define('BT_CAT_BATCH', 45);              // styles per batch (under 60/min)
+define('BT_CAT_CRON_HOOK', 'bt_cat_sync_tick');
+
+/** Auto retail = cost x 2, rounded UP to the nearest .95 (e.g. 3.11 -> 6.95). */
+function bt_cat_autoprice($cost) {
+    $cost = (float) $cost;
+    if ($cost <= 0) return 0.0;
+    $x    = $cost * 2;
+    $base = floor($x);
+    $v    = $base + 0.95;
+    if ($v < $x - 0.0001) $v = $base + 1 + 0.95;
+    return round($v, 2);
+}
+
+/** Effective retail a customer sees: manual override, else auto retail. */
+function bt_cat_price_row($row) {
+    if (isset($row['retail_override']) && $row['retail_override'] !== null && (float) $row['retail_override'] > 0) {
+        return (float) $row['retail_override'];
+    }
+    return (float) ($row['retail'] ?? 0);
+}
+
+/* ---- 1-minute cron schedule -------------------------------------------- */
+add_filter('cron_schedules', function ($s) {
+    $s['bt_cat_minute'] = array('interval' => 60, 'display' => 'Every minute (BT Catalog)');
+    return $s;
+});
+
+/* ---- progress counters ------------------------------------------------- */
+function bt_cat_sync_progress() {
+    global $wpdb;
+    $t = bt_cat_table();
+    $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t");
+    $done  = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t WHERE detail_done<>0");
+    $err   = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t WHERE detail_done=2");
+    $active = (bool) wp_next_scheduled(BT_CAT_CRON_HOOK);
+    return array(
+        'total'   => $total,
+        'done'    => $done,
+        'errors'  => $err,
+        'pending' => max(0, $total - $done),
+        'pct'     => $total > 0 ? round($done / $total * 100) : 0,
+        'active'  => $active,
+    );
+}
+
+/* ---- discovery: list every style and seed the table -------------------- */
+function bt_cat_sync_discover() {
+    global $wpdb;
+    $t = bt_cat_table();
+
+    // One big call returns all styles (meta only; no colors/pricing yet).
+    $r = bt_cat_ss_get('styles/?pageSize=10000', 60);
+    if (empty($r['ok'])) return $r;
+    $rows = $r['data'];
+    if (empty($rows)) return array('error' => 'No styles returned.');
+
+    $seeded = 0;
+    foreach ($rows as $s) {
+        $styleID = (string) ($s['styleID'] ?? '');
+        if ($styleID === '') continue;
+
+        // Insert new styles as "pending"; refresh meta on existing without
+        // touching detail_done / pricing / overrides already gathered.
+        $sql = "INSERT INTO $t
+                (supplier, supplier_style_id, style_no, brand, name, category, description, detail_done, active, updated_at)
+                VALUES ('ss', %s, %s, %s, %s, %s, %s, 0, 1, %s)
+                ON DUPLICATE KEY UPDATE
+                style_no=VALUES(style_no), brand=VALUES(brand), name=VALUES(name),
+                category=VALUES(category), description=VALUES(description)";
+        $wpdb->query($wpdb->prepare($sql, array(
+            $styleID,
+            (string) ($s['styleName']    ?? ''),
+            (string) ($s['brandName']    ?? ''),
+            (string) ($s['title']        ?? ''),
+            (string) ($s['baseCategory'] ?? ''),
+            (string) ($s['description']  ?? ''),
+            current_time('mysql'),
+        )));
+        $seeded++;
+    }
+    return array('ok' => true, 'seeded' => $seeded);
+}
+
+/* ---- one batch: fill colors/pricing for pending styles ----------------- */
+function bt_cat_sync_batch($n = BT_CAT_BATCH) {
+    global $wpdb;
+    $t = bt_cat_table();
+
+    // Throttle: at most one real batch per ~55s, no matter how often this is
+    // called (cron + page nudges share this lock), keeping under 60 calls/min.
+    if (get_transient('bt_cat_lock')) {
+        return bt_cat_sync_progress();   // just report, do no work
+    }
+    set_transient('bt_cat_lock', 1, 55);
+
+    $rows = $wpdb->get_results(
+        $wpdb->prepare("SELECT id, supplier_style_id FROM $t WHERE detail_done=0 ORDER BY id ASC LIMIT %d", $n),
+        ARRAY_A
+    );
+    $processed = 0;
+
+    foreach ($rows as $row) {
+        $styleID = $row['supplier_style_id'];
+        $red = bt_cat_ss_reduce($styleID);
+
+        if (empty($red['ok'])) {
+            // Rate limited -> stop now, leave the rest pending for next minute.
+            if (!empty($red['rate'])) break;
+            // Genuine failure (not found, etc.) -> mark so we don't retry forever.
+            $wpdb->update($t, array('detail_done' => 2, 'updated_at' => current_time('mysql')),
+                          array('id' => $row['id']));
+            continue;
+        }
+
+        $specs = array();
+        if ($red['weight'] !== null) $specs[] = array('Weight', $red['weight'] . ' oz');
+
+        $wpdb->update($t, array(
+            'specs'       => wp_json_encode($specs),
+            'colors'      => wp_json_encode(array_values($red['colors'])),
+            'sizes'       => implode(',', $red['sizes']),
+            'cost'        => $red['cost'],
+            'sale_cost'   => $red['sale'],
+            'retail'      => bt_cat_autoprice($red['cost']),
+            'detail_done' => 1,
+            'updated_at'  => current_time('mysql'),
+        ), array('id' => $row['id']));
+        $processed++;
+    }
+
+    $prog = bt_cat_sync_progress();
+
+    // Stop the recurring job once everything is detailed.
+    if ($prog['pending'] === 0 && wp_next_scheduled(BT_CAT_CRON_HOOK)) {
+        wp_clear_scheduled_hook(BT_CAT_CRON_HOOK);
+        $prog['active'] = false;
+    }
+    $prog['processed'] = $processed;
+    return $prog;
+}
+
+/* ---- start / stop ------------------------------------------------------ */
+function bt_cat_sync_start() {
+    $d = bt_cat_sync_discover();
+    if (empty($d['ok'])) return $d;
+    if (!wp_next_scheduled(BT_CAT_CRON_HOOK)) {
+        wp_schedule_event(time() + 5, 'bt_cat_minute', BT_CAT_CRON_HOOK);
+    }
+    // Run one batch immediately so progress starts moving right away.
+    $prog = bt_cat_sync_batch();
+    $prog['seeded'] = $d['seeded'];
+    return array('ok' => true) + $prog;
+}
+
+function bt_cat_sync_stop() {
+    wp_clear_scheduled_hook(BT_CAT_CRON_HOOK);
+}
+
+/* ---- cron + ajax hooks ------------------------------------------------- */
+add_action(BT_CAT_CRON_HOOK, function () { bt_cat_sync_batch(); });
+
+// Admin-page nudge: runs a batch and returns live progress JSON.
+add_action('wp_ajax_bt_cat_tick', function () {
+    if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
+    check_ajax_referer('bt_cat_tick');
+    wp_send_json_success(bt_cat_sync_batch());
+});
