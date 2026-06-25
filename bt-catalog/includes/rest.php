@@ -54,21 +54,15 @@ function bt_cat_rest_list($req) {
     $per   = min(48, max(1, (int) ($req->get_param('per') ?: 24)));
     $off   = ($page - 1) * $per;
 
-    // Featured: when the default page loads (no search/filter) and a featured
-    // list is configured, show those styles in order — by default, no param needed
-    // (robust against cached front-end assets).
+    // Featured: default page (no search/filter) leads with the configured styles,
+    // brand-aware so "Gildan 5000" doesn't collide with another brand's 5000.
     if ($s === '' && $brand === '' && $cat === '' && $color === '') {
-        $flist = bt_cat_featured();
-        if (!empty($flist)) {
-            $ph    = implode(',', array_fill(0, count($flist), '%s'));
-            $base  = "FROM $t WHERE detail_done=1 AND active=1 AND style_no IN ($ph)";
-            $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) $base", $flist));
-            $sql   = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
-                      $base ORDER BY FIELD(style_no, $ph) LIMIT %d OFFSET %d";
-            $params = array_merge($flist, $flist, array($per, $off));
-            $rows   = $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
+        $resolved = bt_cat_featured_resolve();
+        if (!empty($resolved)) {
+            $total    = count($resolved);
+            $pageRows = array_slice($resolved, $off, $per);
             return array(
-                'items'    => bt_cat_rest_rows_to_items($rows),
+                'items'    => bt_cat_rest_rows_to_items($pageRows),
                 'total'    => $total,
                 'page'     => $page,
                 'pages'    => max(1, (int) ceil($total / $per)),

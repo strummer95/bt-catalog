@@ -14,19 +14,77 @@ function bt_cat_table() {
 }
 
 /**
- * Ordered list of featured style numbers (shown on the default page).
- * Stored as a free-text option, one style per line or comma-separated.
+ * Ordered featured entries for the default page.
+ * Each line is one entry: a style number, optionally prefixed with a brand,
+ * e.g. "5000", "Gildan 5000", "Bella Canvas 3001". The LAST token on a line
+ * is the style number; anything before it is the brand (for disambiguation,
+ * since multiple brands reuse numbers like 5000).
+ * Returns array of ['style'=>..., 'brand'=>...].
  */
 function bt_cat_featured() {
     $raw = (string) get_option('bt_cat_featured', '');
-    if ($raw === '') return array();
-    $parts = preg_split('/[\s,]+/', $raw);
+    if (trim($raw) === '') return array();
+    $lines = preg_split('/[\r\n,]+/', $raw);
     $out = array();
-    foreach ($parts as $p) {
-        $p = trim($p);
-        if ($p !== '' && !in_array($p, $out, true)) $out[] = $p;
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        $parts = preg_split('/\s+/', $line);
+        if (count($parts) > 1) {
+            $style = array_pop($parts);
+            $brand = trim(implode(' ', $parts));
+        } else {
+            $style = $parts[0];
+            $brand = '';
+        }
+        $out[] = array('style' => $style, 'brand' => $brand);
     }
     return $out;
+}
+
+/** Normalize a brand for fuzzy comparison (Bella+Canvas == bellacanvas). */
+function bt_cat_brand_norm($b) {
+    return preg_replace('/[^a-z0-9]/', '', strtolower((string) $b));
+}
+
+/**
+ * Resolve the featured list to actual catalog rows, in order, brand-aware.
+ * Returns array of DB row arrays (id, brand, style_no, name, category, colors, retail, retail_override).
+ */
+function bt_cat_featured_resolve() {
+    global $wpdb;
+    $t = bt_cat_table();
+    $flist = bt_cat_featured();
+    if (empty($flist)) return array();
+
+    $ors = array(); $args = array();
+    foreach ($flist as $f) {
+        if ($f['brand'] !== '') {
+            $ors[] = "(style_no = %s AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','') = %s)";
+            $args[] = $f['style'];
+            $args[] = bt_cat_brand_norm($f['brand']);
+        } else {
+            $ors[] = "(style_no = %s)";
+            $args[] = $f['style'];
+        }
+    }
+    $sql  = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
+             FROM $t WHERE detail_done=1 AND active=1 AND (" . implode(' OR ', $ors) . ")";
+    $rows = $wpdb->get_results($wpdb->prepare($sql, $args), ARRAY_A);
+
+    $ordered = array(); $seen = array();
+    foreach ($flist as $f) {
+        $nb = $f['brand'] !== '' ? bt_cat_brand_norm($f['brand']) : '';
+        foreach ($rows as $r) {
+            if ((string) $r['style_no'] !== (string) $f['style']) continue;
+            if ($nb !== '' && bt_cat_brand_norm($r['brand']) !== $nb) continue;
+            if (isset($seen[$r['id']])) continue;
+            $seen[$r['id']] = true;
+            $ordered[] = $r;
+            break; // one row per featured line
+        }
+    }
+    return $ordered;
 }
 
 /**

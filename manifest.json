@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.5.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.3.zip",
+  "version": "0.5.4",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.4.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Featured box: removed the misleading example-as-placeholder, added clear saved/empty status so you can tell when featured is actually set."
+  "changelog": "Featured is now brand-aware: write 'Gildan 5000' to disambiguate shared style numbers. Admin lists exactly what each line matched and flags collisions."
 }

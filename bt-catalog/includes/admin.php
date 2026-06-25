@@ -163,32 +163,50 @@ function bt_cat_admin_page() {
 
         <hr style="margin:28px 0">
         <h2>Featured on default page</h2>
-        <p class="description">Style numbers to show (in order) when the catalog first loads, before anyone searches or filters. One per line or comma-separated. Example: 5000, 8000, 18000, 18500, 3001</p>
+        <p class="description">Styles to show (in order) when the catalog first loads, before anyone searches or filters. One per line or comma-separated. If a style number is shared by several brands (like 5000), put the brand first: <code>Gildan 5000</code>.</p>
         <?php
-            $feat_raw   = (string) get_option('bt_cat_featured', '');
-            $feat_list  = function_exists('bt_cat_featured') ? bt_cat_featured() : array();
-            $feat_found = 0; $feat_missing = array();
+            $feat_raw  = (string) get_option('bt_cat_featured', '');
+            $feat_list = function_exists('bt_cat_featured') ? bt_cat_featured() : array();
+            $feat_rows = array();
             if (!empty($feat_list)) {
                 global $wpdb; $t = bt_cat_table();
-                $ph = implode(',', array_fill(0, count($feat_list), '%s'));
-                $have = $wpdb->get_col($wpdb->prepare("SELECT style_no FROM $t WHERE style_no IN ($ph)", $feat_list));
-                $have = array_map('strval', (array) $have);
-                foreach ($feat_list as $sn) { if (in_array((string)$sn, $have, true)) $feat_found++; else $feat_missing[] = $sn; }
+                foreach ($feat_list as $f) {
+                    $amb = 0; $row = null;
+                    if ($f['brand'] !== '') {
+                        $row = $wpdb->get_row($wpdb->prepare(
+                            "SELECT brand, style_no, name FROM $t WHERE style_no=%s AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','')=%s AND detail_done=1 AND active=1 LIMIT 1",
+                            $f['style'], bt_cat_brand_norm($f['brand'])), ARRAY_A);
+                    } else {
+                        $row = $wpdb->get_row($wpdb->prepare(
+                            "SELECT brand, style_no, name FROM $t WHERE style_no=%s AND detail_done=1 AND active=1 LIMIT 1", $f['style']), ARRAY_A);
+                        $amb = (int) $wpdb->get_var($wpdb->prepare(
+                            "SELECT COUNT(DISTINCT brand) FROM $t WHERE style_no=%s AND detail_done=1 AND active=1", $f['style']));
+                    }
+                    $feat_rows[] = array('entry' => $f, 'row' => $row, 'amb' => ($amb > 1 ? $amb : 0));
+                }
             }
         ?>
         <form method="post">
             <?php wp_nonce_field('bt_cat_feat'); ?>
-            <textarea name="featured" rows="6" class="large-text code" placeholder="Type style numbers here, e.g.  5000, 8000, 18000, 18500, 3001"><?php echo esc_textarea($feat_raw); ?></textarea>
+            <textarea name="featured" rows="6" class="large-text code" placeholder="Type style numbers here, e.g.  Gildan 5000, Gildan 8000, Bella Canvas 3001"><?php echo esc_textarea($feat_raw); ?></textarea>
             <?php if (!empty($feat_list)): ?>
-                <p class="description">
-                    Matched <strong><?php echo (int) $feat_found; ?></strong> of <?php echo count($feat_list); ?> in the catalog.
-                    <?php if (!empty($feat_missing)): ?>
-                        <span style="color:#b32d2e">Not found: <?php echo esc_html(implode(', ', $feat_missing)); ?></span>
-                        — these may not be imported yet, or the style number differs from S&S.
-                    <?php endif; ?>
-                </p>
+                <ul style="margin:8px 0 0;font-size:13px">
+                    <?php foreach ($feat_rows as $fr): $f = $fr['entry']; $row = $fr['row']; ?>
+                        <li style="padding:2px 0">
+                            <code><?php echo esc_html(($f['brand'] ? $f['brand'].' ' : '') . $f['style']); ?></code> &rarr;
+                            <?php if ($row): ?>
+                                <strong><?php echo esc_html($row['brand']); ?></strong> &middot; <?php echo esc_html($row['name'] ?: $row['style_no']); ?>
+                                <?php if ($fr['amb']): ?>
+                                    <span style="color:#b26a00">&nbsp;&#9888; <?php echo (int) $fr['amb']; ?> brands use &ldquo;<?php echo esc_html($f['style']); ?>&rdquo; — add the brand (e.g. <em>Gildan <?php echo esc_html($f['style']); ?></em>) to pick the right one.</span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span style="color:#b32d2e">not found — may not be imported yet, or the style number/brand differs.</span>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
             <?php else: ?>
-                <p class="description" style="color:#b32d2e">No featured styles saved yet — the catalog is showing the full A–Z list. Type style numbers above (the grey text is only an example) and click Save featured.</p>
+                <p class="description" style="color:#b32d2e">No featured styles saved yet — the catalog is showing the full A&ndash;Z list. Type style numbers above (grey text is only an example) and click Save featured.</p>
             <?php endif; ?>
             <p><button type="submit" name="bt_cat_save_feat" value="1" class="button button-primary">Save featured</button></p>
         </form>
