@@ -55,9 +55,9 @@ function bt_cat_rest_list($req) {
     $off   = ($page - 1) * $per;
 
     // Featured: when the default page loads (no search/filter) and a featured
-    // list is configured, show those styles in the configured order.
-    $featured = (int) $req->get_param('featured');
-    if ($featured && $s === '' && $brand === '' && $cat === '' && $color === '') {
+    // list is configured, show those styles in order — by default, no param needed
+    // (robust against cached front-end assets).
+    if ($s === '' && $brand === '' && $cat === '' && $color === '') {
         $flist = bt_cat_featured();
         if (!empty($flist)) {
             $ph    = implode(',', array_fill(0, count($flist), '%s'));
