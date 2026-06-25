@@ -128,10 +128,13 @@
     if (F.brand) q += '&brand=' + encodeURIComponent(F.brand);
     if (F.category) q += '&category=' + encodeURIComponent(F.category);
     if (F.color) q += '&color=' + encodeURIComponent(F.color);
+    if (!F.s && !F.brand && !F.category && !F.color) q += '&featured=1';
     var grid = document.getElementById('btGrid');
     grid.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8a8aa0">Loading\u2026</div>';
     api(q).then(function(d){
       document.getElementById('btCount').textContent = d.total || 0;
+      var cwrap = document.getElementById('btCount').parentNode;
+      if (cwrap) cwrap.lastChild.textContent = d.featured ? ' featured styles' : ' styles';
       if (!d.items || !d.items.length){ grid.innerHTML = '<div class="noresults" style="grid-column:1/-1;text-align:center;padding:50px;color:#8a8aa0">No styles match.</div>'; document.getElementById('btPager').innerHTML=''; return; }
       grid.innerHTML = d.items.map(function(p){
         var img = p.thumb ? '<img src="'+esc(p.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">'

@@ -54,6 +54,30 @@ function bt_cat_rest_list($req) {
     $per   = min(48, max(1, (int) ($req->get_param('per') ?: 24)));
     $off   = ($page - 1) * $per;
 
+    // Featured: when the default page loads (no search/filter) and a featured
+    // list is configured, show those styles in the configured order.
+    $featured = (int) $req->get_param('featured');
+    if ($featured && $s === '' && $brand === '' && $cat === '' && $color === '') {
+        $flist = bt_cat_featured();
+        if (!empty($flist)) {
+            $ph    = implode(',', array_fill(0, count($flist), '%s'));
+            $base  = "FROM $t WHERE detail_done=1 AND active=1 AND style_no IN ($ph)";
+            $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) $base", $flist));
+            $sql   = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
+                      $base ORDER BY FIELD(style_no, $ph) LIMIT %d OFFSET %d";
+            $params = array_merge($flist, $flist, array($per, $off));
+            $rows   = $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
+            return array(
+                'items'    => bt_cat_rest_rows_to_items($rows),
+                'total'    => $total,
+                'page'     => $page,
+                'pages'    => max(1, (int) ceil($total / $per)),
+                'per'      => $per,
+                'featured' => true,
+            );
+        }
+    }
+
     $where = array("detail_done=1", "active=1");
     $args  = array();
 
@@ -87,8 +111,19 @@ function bt_cat_rest_list($req) {
              FROM $t WHERE $wsql ORDER BY brand ASC, style_no ASC LIMIT %d OFFSET %d";
     $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, array($per, $off))), ARRAY_A);
 
+    return array(
+        'items' => bt_cat_rest_rows_to_items($rows),
+        'total' => $total,
+        'page'  => $page,
+        'pages' => max(1, (int) ceil($total / $per)),
+        'per'   => $per,
+    );
+}
+
+/** Map DB rows to customer-safe list items (cost never leaves the server). */
+function bt_cat_rest_rows_to_items($rows) {
     $items = array();
-    foreach ($rows as $r) {
+    foreach ((array) $rows as $r) {
         $cols  = json_decode($r['colors'], true);
         $cols  = is_array($cols) ? $cols : array();
         $thumb = !empty($cols[0]['img']) ? $cols[0]['img'] : '';
@@ -103,14 +138,7 @@ function bt_cat_rest_list($req) {
             'thumb'  => $thumb,
         );
     }
-
-    return array(
-        'items' => $items,
-        'total' => $total,
-        'page'  => $page,
-        'pages' => max(1, (int) ceil($total / $per)),
-        'per'   => $per,
-    );
+    return $items;
 }
 
 function bt_cat_rest_item($req) {

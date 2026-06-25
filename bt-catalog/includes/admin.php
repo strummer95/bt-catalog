@@ -39,6 +39,13 @@ function bt_cat_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
     }
 
+    // Save featured style list (its own option).
+    if (isset($_POST['bt_cat_save_feat'])) {
+        check_admin_referer('bt_cat_feat');
+        update_option('bt_cat_featured', sanitize_textarea_field(wp_unslash($_POST['featured'])));
+        echo '<div class="notice notice-success is-dismissible"><p>Featured list saved.</p></div>';
+    }
+
     // Save update source (merge — preserves credentials).
     if (isset($_POST['bt_cat_save_upd'])) {
         check_admin_referer('bt_cat_upd');
@@ -152,6 +159,36 @@ function bt_cat_admin_page() {
                 </tr>
             </table>
             <p><button type="submit" name="bt_cat_save" value="1" class="button button-primary">Save settings</button></p>
+        </form>
+
+        <hr style="margin:28px 0">
+        <h2>Featured on default page</h2>
+        <p class="description">Style numbers to show (in order) when the catalog first loads, before anyone searches or filters. One per line or comma-separated. Example: 5000, 8000, 18000, 18500, 3001</p>
+        <?php
+            $feat_raw   = (string) get_option('bt_cat_featured', '');
+            $feat_list  = function_exists('bt_cat_featured') ? bt_cat_featured() : array();
+            $feat_found = 0; $feat_missing = array();
+            if (!empty($feat_list)) {
+                global $wpdb; $t = bt_cat_table();
+                $ph = implode(',', array_fill(0, count($feat_list), '%s'));
+                $have = $wpdb->get_col($wpdb->prepare("SELECT style_no FROM $t WHERE style_no IN ($ph)", $feat_list));
+                $have = array_map('strval', (array) $have);
+                foreach ($feat_list as $sn) { if (in_array((string)$sn, $have, true)) $feat_found++; else $feat_missing[] = $sn; }
+            }
+        ?>
+        <form method="post">
+            <?php wp_nonce_field('bt_cat_feat'); ?>
+            <textarea name="featured" rows="6" class="large-text code" placeholder="5000&#10;8000&#10;18000&#10;18500&#10;3001"><?php echo esc_textarea($feat_raw); ?></textarea>
+            <?php if (!empty($feat_list)): ?>
+                <p class="description">
+                    Matched <strong><?php echo (int) $feat_found; ?></strong> of <?php echo count($feat_list); ?> in the catalog.
+                    <?php if (!empty($feat_missing)): ?>
+                        <span style="color:#b32d2e">Not found: <?php echo esc_html(implode(', ', $feat_missing)); ?></span>
+                        — these may not be imported yet, or the style number differs from S&S.
+                    <?php endif; ?>
+                </p>
+            <?php endif; ?>
+            <p><button type="submit" name="bt_cat_save_feat" value="1" class="button button-primary">Save featured</button></p>
         </form>
 
         <hr style="margin:28px 0">

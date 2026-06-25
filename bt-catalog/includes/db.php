@@ -14,6 +14,22 @@ function bt_cat_table() {
 }
 
 /**
+ * Ordered list of featured style numbers (shown on the default page).
+ * Stored as a free-text option, one style per line or comma-separated.
+ */
+function bt_cat_featured() {
+    $raw = (string) get_option('bt_cat_featured', '');
+    if ($raw === '') return array();
+    $parts = preg_split('/[\s,]+/', $raw);
+    $out = array();
+    foreach ($parts as $p) {
+        $p = trim($p);
+        if ($p !== '' && !in_array($p, $out, true)) $out[] = $p;
+    }
+    return $out;
+}
+
+/**
  * Create or migrate the cache table. Safe to run repeatedly (dbDelta diffs it).
  *
  * Column notes:
