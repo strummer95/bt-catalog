@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.3.9",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.3.9.zip",
+  "version": "0.4.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.4.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "My Quote button moved inline above the search bar. Product page now shows Sizes & quantity above Color."
+  "changelog": "Compressed product page: small (1/4-size) color swatches, tighter size boxes (one row), and Add to Quote sits next to the sizes."
 }
