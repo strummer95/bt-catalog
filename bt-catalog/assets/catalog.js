@@ -247,14 +247,14 @@
     var d = document.getElementById('btDrawer');
     document.getElementById('btScrim').style.display='block';
     d.style.cssText = 'display:flex;flex-direction:column;position:fixed;top:0;right:0;bottom:0;z-index:80;'+
-      'width:420px;max-width:100%;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.18)';
-    d.classList.add('open');
+      'width:420px;max-width:100%;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.18);transform:translateX(0)';
+    d.classList.add('show');
     document.documentElement.style.overflow='hidden';
     renderDrawer();
   }
   function closeDrawer(){
     document.getElementById('btScrim').style.display='none';
-    var d=document.getElementById('btDrawer'); d.classList.remove('open'); d.style.display='none';
+    var d=document.getElementById('btDrawer'); d.classList.remove('show'); d.style.display='none';
     document.documentElement.style.overflow='';
   }
   document.getElementById('btScrim').addEventListener('click', closeDrawer);

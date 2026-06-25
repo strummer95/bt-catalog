@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.4.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.4.0.zip",
+  "version": "0.4.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.4.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Compressed product page: small (1/4-size) color swatches, tighter size boxes (one row), and Add to Quote sits next to the sizes."
+  "changelog": "Fixed: My Quote button now opens the quote drawer (it was sliding in off-screen). 3-step quote flow opens correctly."
 }
