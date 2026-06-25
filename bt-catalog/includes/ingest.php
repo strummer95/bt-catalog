@@ -132,6 +132,9 @@ function bt_cat_ss_reduce($styleID) {
                 'img'  => !empty($k['colorFrontImage'])
                     ? 'https://www.ssactivewear.com/' . ltrim($k['colorFrontImage'], '/')
                     : '',
+                'swatch' => !empty($k['colorSwatchImage'])
+                    ? 'https://www.ssactivewear.com/' . ltrim($k['colorSwatchImage'], '/')
+                    : '',
             );
         }
         $z = $k['sizeName'] ?? '';

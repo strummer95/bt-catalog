@@ -168,7 +168,7 @@
       var pdp = document.getElementById('btPdp');
       pdp.innerHTML =
         '<div class="wrap"><span class="back">\u2190 Back to catalog</span>' +
-        '<div class="pdp-grid"><div class="pdp-img" id="btPdpImg"></div><div>' +
+        '<div class="pdp-grid" style="grid-template-columns:minmax(0,240px) 1fr"><div class="pdp-img" id="btPdpImg"></div><div>' +
           '<div class="pbrand">'+esc(p.brand)+'</div><h1>'+esc(p.name||p.style)+'</h1>' +
           '<div class="pstyle">Style '+esc(p.style)+'</div>' +
           '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>' +
@@ -199,8 +199,10 @@
     var box = document.getElementById('btColors2');
     box.innerHTML = p.colors.map(function(c){
       var sel = c.name === currentColor ? ' sel' : '';
-      var hex = c.hex ? ('#' + String(c.hex).replace('#','')) : '#dddddd';
-      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><div class="csq" style="background:'+hex+'"></div><span class="clabel">'+esc(c.name)+'</span></div>';
+      var bg = c.swatch
+        ? 'background-image:url('+c.swatch+');background-size:cover;background-position:center'
+        : ('background:' + (c.hex ? '#' + String(c.hex).replace('#','') : '#dddddd'));
+      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><div class="csq" style="'+bg+'"></div><span class="clabel">'+esc(c.name)+'</span></div>';
     }).join('');
     setColorName();
     box.querySelectorAll('.copt').forEach(function(s){ s.addEventListener('click', function(){
