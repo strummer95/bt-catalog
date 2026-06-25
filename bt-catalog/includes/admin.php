@@ -178,7 +178,7 @@ function bt_cat_admin_page() {
         ?>
         <form method="post">
             <?php wp_nonce_field('bt_cat_feat'); ?>
-            <textarea name="featured" rows="6" class="large-text code" placeholder="5000&#10;8000&#10;18000&#10;18500&#10;3001"><?php echo esc_textarea($feat_raw); ?></textarea>
+            <textarea name="featured" rows="6" class="large-text code" placeholder="Type style numbers here, e.g.  5000, 8000, 18000, 18500, 3001"><?php echo esc_textarea($feat_raw); ?></textarea>
             <?php if (!empty($feat_list)): ?>
                 <p class="description">
                     Matched <strong><?php echo (int) $feat_found; ?></strong> of <?php echo count($feat_list); ?> in the catalog.
@@ -187,6 +187,8 @@ function bt_cat_admin_page() {
                         — these may not be imported yet, or the style number differs from S&S.
                     <?php endif; ?>
                 </p>
+            <?php else: ?>
+                <p class="description" style="color:#b32d2e">No featured styles saved yet — the catalog is showing the full A–Z list. Type style numbers above (the grey text is only an example) and click Save featured.</p>
             <?php endif; ?>
             <p><button type="submit" name="bt_cat_save_feat" value="1" class="button button-primary">Save featured</button></p>
         </form>
