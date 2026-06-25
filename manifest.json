@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fixed settings save wiping S&S credentials; product detail + drawer now open correctly; page scroll restored; GitHub auto-update."
+  "changelog": "Product detail now opens reliably (event delegation, high z-index, full-screen overlay); defensive data handling; error surfacing."
 }

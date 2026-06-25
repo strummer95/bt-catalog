@@ -120,7 +120,7 @@
           '<div class="row"><div class="price">'+money(p.price)+' <small>/ea</small></div>' +
           '<div class="colorcount">'+p.colors+' colors available</div></div></div></div>';
       }).join('');
-      grid.querySelectorAll('.pcard').forEach(function(c){ c.addEventListener('click', function(){ openPDP(c.getAttribute('data-id')); }); });
+      grid.querySelectorAll('.pcard').forEach(function(){});
       renderPager(d.page, d.pages);
     });
   }
@@ -136,8 +136,13 @@
   /* ---------- product detail ---------- */
   function openPDP(id){
     api('catalog/item?id=' + id).then(function(p){
-      if (!p || p.error) return;
-      current = p; currentColor = (p.colors[0] && p.colors[0].name) || null;
+      if (!p || p.error){ console.error('BT Catalog: item load failed for id ' + id, p); alert('Sorry — could not load that product. Please try again.'); return; }
+      var colors = Array.isArray(p.colors) ? p.colors : [];
+      var specs  = Array.isArray(p.specs)  ? p.specs  : [];
+      var sizes  = (Array.isArray(p.sizes) && p.sizes.length) ? p.sizes : ['S','M','L','XL','2XL'];
+      current = p; current.colors = colors; current.sizes = sizes;
+      currentColor = (colors[0] && colors[0].name) || null;
+
       var pdp = document.getElementById('btPdp');
       pdp.innerHTML =
         '<div class="wrap"><span class="back">\u2190 Back to catalog</span>' +
@@ -147,23 +152,25 @@
           '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>' +
           '<div class="priceNote">Per-piece retail before decoration. Final price comes back on your quote.</div>' +
           '<p class="desc">'+esc(p.desc)+'</p>' +
-          '<ul class="specs">'+ p.specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +
+          '<ul class="specs">'+ specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +
           '<div class="lab">Color <span id="btColorName" style="color:#8a8aa0;text-transform:none;letter-spacing:0"></span></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
           '<div class="lab">Sizes &amp; quantity</div><div class="sizegrid" id="btSizes"></div>' +
           '<button class="addbtn" id="btAdd">Add to Quote</button>' +
         '</div></div></div>';
-      pdp.classList.add('open');
-      pdp.style.cssText = 'position:fixed;inset:0;z-index:80;background:#fff;overflow:auto;-webkit-overflow-scrolling:touch';
+      pdp.className = 'pdp open';
+      pdp.style.cssText = 'display:block;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch';
       document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
       pdp.querySelector('.back').addEventListener('click', closePDP);
 
-      renderColors(p);
-      renderSizes(p);
+      renderColors(current);
+      renderSizes(current);
       document.getElementById('btAdd').addEventListener('click', addToQuote);
-    });
+      pdp.scrollTop = 0;
+    }).catch(function(err){ console.error('BT Catalog: item fetch error', err); alert('Sorry — could not load that product.'); });
   }
-  function closePDP(){ var p=document.getElementById('btPdp'); p.classList.remove('open'); p.style.cssText='display:none'; document.documentElement.style.overflow=''; }
+  function closePDP(){ var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none'; document.documentElement.style.overflow=''; document.body.style.overflow=''; }
 
   function renderColors(p){
     var box = document.getElementById('btColors2');
@@ -327,5 +334,9 @@
   }
 
   /* ---------- go ---------- */
+  document.getElementById('btGrid').addEventListener('click', function(e){
+    var card = e.target.closest('.pcard');
+    if (card && card.getAttribute('data-id')) openPDP(card.getAttribute('data-id'));
+  });
   bindMenus(); bindSearch(); loadFacets(); loadGrid();
 })();
