@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.4.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.4.3.zip",
+  "version": "0.5.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Per-shirt estimate is now quantity-tiered, so changing quantities in step 1 updates the price in step 2. Placeholder tiers — replace with real numbers."
+  "changelog": "Quote pricing now uses the real Quick Quote endpoint (/boomerts/v1/price) with garment=custom + the blank's retail. Print uses 1-3 locations; embroidery uses Names/Logo/Hard-to-handle. Live price updates with quantity."
 }

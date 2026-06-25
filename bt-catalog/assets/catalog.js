@@ -32,7 +32,8 @@
     F.page     = parseInt(p.get('page') || '1', 10) || 1;
     return p.get('pid');
   }
-  var quote = [], dStep = 1, method = 'print', locs = 1, sent = false;
+  var quote = [], dStep = 1, method = 'print', locs = 1, embType = 'text', sent = false;
+  var lastEst = null;
   var contact = { name:'', email:'', phone:'', notes:'' };
 
   var root = document.getElementById('btcat-root');
@@ -259,22 +260,18 @@
   }
   document.getElementById('btScrim').addEventListener('click', closeDrawer);
 
-  function decoPerPiece(qty){
-    // Per-piece decoration cost for ONE location, by quantity tier (ESTIMATE — tune these).
-    var t;
-    if      (qty < 12)  t = (method==='print') ? 6.00 : 8.00;
-    else if (qty < 24)  t = (method==='print') ? 4.50 : 6.50;
-    else if (qty < 48)  t = (method==='print') ? 3.50 : 5.50;
-    else if (qty < 100) t = (method==='print') ? 2.75 : 4.50;
-    else if (qty < 250) t = (method==='print') ? 2.25 : 4.00;
-    else                t = (method==='print') ? 1.75 : 3.50;
-    return t + (locs - 1) * (t * 0.7);   // each extra location ~70% of the first
-  }
-  function pricePer(){ // garment base + quantity-tiered decoration
-    var base = quote.length ? quote[0].price : 0;
-    return base + decoPerPiece(totalQty());
-  }
   function totalQty(){ return quote.reduce(function(a,l){return a+l.qty;},0); }
+
+  // Live price from the same Quick Quote endpoint the employee portal uses.
+  function postPrice(cb){
+    var params = 'qty=' + encodeURIComponent(totalQty()) +
+                 '&garment=custom&retail=' + encodeURIComponent(quote[0] ? quote[0].price : 0);
+    if (method==='emb') params += '&method=embroidery&embType=' + encodeURIComponent(embType);
+    else                params += '&method=print&locations=' + encodeURIComponent(locs);
+    fetch(REST + 'price', { method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: params })
+      .then(function(r){ return r.json(); }).then(cb).catch(function(){ cb(null); });
+  }
 
   function renderDrawer(){
     var d = document.getElementById('btDrawer');
@@ -319,26 +316,52 @@
 
   function stepDeco(){
     var b = document.getElementById('btDbody');
+    var sub = (method==='print')
+      ? '<div class="secLab">Print locations</div>' +
+        [1,2,3].map(function(n){ var ie=['Front Only','Front &amp; Back','Front, Back &amp; Sleeve'][n-1];
+          return '<label class="optcard'+(locs===n?' on':'')+'" data-loc="'+n+'"><span class="oct">'+n+' Location'+(n>1?'s':'')+'</span><span class="ocs">ie: '+ie+'</span><span class="ocb">'+n+' LOC'+(n>1?'S':'')+'</span></label>';
+        }).join('')
+      : '<div class="secLab">Embroidery type</div>' +
+        [['text','Names / Text'],['logo','Logo'],['hard','Hard-to-handle']].map(function(t){
+          return '<label class="optcard'+(embType===t[0]?' on':'')+'" data-emb="'+t[0]+'"><span class="oct">'+t[1]+'</span></label>';
+        }).join('');
     b.innerHTML =
       '<div class="secLab">How are we decorating it?</div>' +
       '<div class="methsel">' +
         '<button data-m="print" class="'+(method==='print'?'on':'')+'">Printed</button>' +
         '<button data-m="emb" class="'+(method==='emb'?'on':'')+'">Embroidered</button>' +
       '</div>' +
-      '<div class="secLab">'+(method==='print'?'Print locations':'Stitch locations')+'</div>' +
-      [1,2,3].map(function(n){ var ie=['Front Only','Front &amp; Back','Front, Back &amp; Sleeve'][n-1];
-        return '<label class="optcard'+(locs===n?' on':'')+'" data-loc="'+n+'"><span class="oct">'+n+' Location'+(n>1?'s':'')+'</span><span class="ocs">ie: '+ie+'</span><span class="ocb">'+n+' LOC'+(n>1?'S':'')+'</span></label>';
-      }).join('') +
+      sub +
       '<div class="declabel">All work is <b>full color, high quality</b>. Not sure yet? Leave it \u2014 we\'ll confirm with you.</div>' +
-      '<div class="estp"><div class="estp-lab">Price per shirt</div><div class="estp-price"><sup>$</sup><big>'+pricePer().toFixed(2).split('.')[0]+'</big><sup>.'+pricePer().toFixed(2).split('.')[1]+'</sup></div>' +
-        '<div class="estp-grid"><div class="et"><span>Qty</span><b>'+totalQty()+'</b></div><div class="et"><span>Decoration</span><b>'+(method==='print'?'Print':'Embroidery')+' \u00d7'+locs+'</b></div></div>' +
-        '<div class="estp-calc"><span>'+money(pricePer())+' \u00d7 '+totalQty()+'</span><span class="tot">'+money(pricePer()*totalQty())+'</span></div>' +
-        '<div class="estp-note">Estimate \u00b7 final quote confirmed by our team</div></div>';
+      '<div class="estp" id="btEst"><div class="estp-note">Calculating\u2026</div></div>';
     b.querySelectorAll('[data-m]').forEach(function(x){ x.addEventListener('click', function(){ method=x.getAttribute('data-m'); stepDeco(); }); });
     b.querySelectorAll('[data-loc]').forEach(function(x){ x.addEventListener('click', function(){ locs=+x.getAttribute('data-loc'); stepDeco(); }); });
+    b.querySelectorAll('[data-emb]').forEach(function(x){ x.addEventListener('click', function(){ embType=x.getAttribute('data-emb'); stepDeco(); }); });
     document.getElementById('btDfoot').innerHTML = '<button class="ghost" id="btBack">Back</button><button class="primary" id="btNext">Next: Send</button>';
     document.getElementById('btBack').addEventListener('click', function(){ goStep(1); });
     document.getElementById('btNext').addEventListener('click', function(){ goStep(3); });
+
+    var decoLabel = (method==='emb')
+      ? ({text:'Names/Text',logo:'Logo',hard:'Hard-to-handle'}[embType]||'Embroidery')
+      : ('Print \u00d7'+locs);
+    postPrice(function(d){
+      var est = document.getElementById('btEst'); if(!est) return;
+      lastEst = d;
+      if(!d){ est.innerHTML = '<div class="estp-note">Price will be confirmed on your quote.</div>'; return; }
+      if(d.perShirt == null){   // embroidery 84+ → by quote
+        est.innerHTML = '<div class="estp-lab">Price per shirt</div><div class="estp-price"><big style="font-size:26px">By quote</big></div>' +
+          '<div class="estp-grid"><div class="et"><span>Qty</span><b>'+totalQty()+'</b></div><div class="et"><span>Decoration</span><b>'+decoLabel+'</b></div></div>' +
+          '<div class="estp-note">Larger embroidery orders are custom-quoted by our team.</div>';
+        return;
+      }
+      var ps = (+d.perShirt).toFixed(2).split('.');
+      est.innerHTML =
+        '<div class="estp-lab">Price per shirt</div>' +
+        '<div class="estp-price"><sup>$</sup><big>'+ps[0]+'</big><sup>.'+ps[1]+'</sup></div>' +
+        '<div class="estp-grid"><div class="et"><span>Qty</span><b>'+totalQty()+'</b></div><div class="et"><span>Decoration</span><b>'+decoLabel+'</b></div></div>' +
+        '<div class="estp-calc"><span>'+money(d.perShirt)+' \u00d7 '+totalQty()+(d.discPct?(' \u00b7 '+d.discPct+'% off'):'')+'</span><span class="tot">'+money(d.total)+'</span></div>' +
+        '<div class="estp-note">Estimate \u00b7 final quote confirmed by our team</div>';
+    });
   }
 
   function stepSend(){
