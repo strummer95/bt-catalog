@@ -9,7 +9,29 @@
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
   var F = { s:'', brand:'', category:'', color:'', page:1 };
-  var current = null, currentColor = null;
+  var current = null, currentColor = null, curPid = null;
+
+  /* ---------- shareable URL state ---------- */
+  function syncURL(){
+    var q = [];
+    if (F.s)        q.push('s=' + encodeURIComponent(F.s));
+    if (F.brand)    q.push('brand=' + encodeURIComponent(F.brand));
+    if (F.category) q.push('category=' + encodeURIComponent(F.category));
+    if (F.color)    q.push('color=' + encodeURIComponent(F.color));
+    if (F.page > 1) q.push('page=' + F.page);
+    if (curPid)     q.push('pid=' + encodeURIComponent(curPid));
+    try { history.replaceState(null, '', location.pathname + (q.length ? ('?' + q.join('&')) : '')); } catch(e){}
+  }
+  function readURL(){
+    var p;
+    try { p = new URLSearchParams(location.search); } catch(e){ return null; }
+    F.s        = p.get('s') || '';
+    F.brand    = p.get('brand') || '';
+    F.category = p.get('category') || '';
+    F.color    = p.get('color') || '';
+    F.page     = parseInt(p.get('page') || '1', 10) || 1;
+    return p.get('pid');
+  }
   var quote = [], dStep = 1, method = 'print', locs = 1, sent = false;
   var contact = { name:'', email:'', phone:'', notes:'' };
 
@@ -86,7 +108,7 @@
 
   function setFilter(key, val){
     F[key] = (F[key] === val) ? '' : val;  // toggle
-    F.page = 1; closeMenus(); renderActive(); loadGrid();
+    F.page = 1; closeMenus(); renderActive(); syncURL(); loadGrid();
   }
   function renderActive(){
     var bits = [];
@@ -95,7 +117,7 @@
     });
     var el = document.getElementById('btActive');
     el.innerHTML = bits.join('');
-    el.querySelectorAll('[data-clear]').forEach(function(c){ c.addEventListener('click', function(){ F[c.getAttribute('data-clear')]=''; F.page=1; renderActive(); loadGrid(); }); });
+    el.querySelectorAll('[data-clear]').forEach(function(c){ c.addEventListener('click', function(){ F[c.getAttribute('data-clear')]=''; F.page=1; renderActive(); syncURL(); loadGrid(); }); });
   }
 
   /* ---------- grid ---------- */
@@ -130,7 +152,7 @@
     el.innerHTML = '<button class="pgbtn" '+(page<=1?'disabled':'')+' data-go="'+(page-1)+'">\u2039 Prev</button>' +
       '<span class="pginfo">Page '+page+' of '+pages+'</span>' +
       '<button class="pgbtn" '+(page>=pages?'disabled':'')+' data-go="'+(page+1)+'">Next \u203a</button>';
-    el.querySelectorAll('[data-go]').forEach(function(b){ b.addEventListener('click', function(){ if(b.disabled) return; F.page=parseInt(b.getAttribute('data-go'),10); loadGrid(); window.scrollTo({top:root.offsetTop,behavior:'smooth'}); }); });
+    el.querySelectorAll('[data-go]').forEach(function(b){ b.addEventListener('click', function(){ if(b.disabled) return; F.page=parseInt(b.getAttribute('data-go'),10); syncURL(); loadGrid(); window.scrollTo({top:root.offsetTop,behavior:'smooth'}); }); });
   }
 
   /* ---------- product detail ---------- */
@@ -168,16 +190,17 @@
       renderSizes(current);
       document.getElementById('btAdd').addEventListener('click', addToQuote);
       pdp.scrollTop = 0;
+      curPid = String(id); syncURL();
     }).catch(function(err){ console.error('BT Catalog: item fetch error', err); alert('Sorry — could not load that product.'); });
   }
-  function closePDP(){ var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none'; document.documentElement.style.overflow=''; document.body.style.overflow=''; }
+  function closePDP(){ var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none'; document.documentElement.style.overflow=''; document.body.style.overflow=''; curPid=null; syncURL(); }
 
   function renderColors(p){
     var box = document.getElementById('btColors2');
     box.innerHTML = p.colors.map(function(c){
       var sel = c.name === currentColor ? ' sel' : '';
       var hex = c.hex ? ('#' + String(c.hex).replace('#','')) : '#dddddd';
-      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><span class="csq" style="background:'+hex+'"></span><span class="clabel">'+esc(c.name)+'</span></div>';
+      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><div class="csq" style="background:'+hex+'"></div><span class="clabel">'+esc(c.name)+'</span></div>';
     }).join('');
     setColorName();
     box.querySelectorAll('.copt').forEach(function(s){ s.addEventListener('click', function(){
@@ -329,7 +352,7 @@
   function bindSearch(){
     document.getElementById('btSearch').addEventListener('input', function(e){
       clearTimeout(sT); var v=e.target.value;
-      sT = setTimeout(function(){ F.s=v; F.page=1; loadGrid(); }, 300);
+      sT = setTimeout(function(){ F.s=v; F.page=1; syncURL(); loadGrid(); }, 300);
     });
   }
 
@@ -338,5 +361,10 @@
     var card = e.target.closest('.pcard');
     if (card && card.getAttribute('data-id')) openPDP(card.getAttribute('data-id'));
   });
-  bindMenus(); bindSearch(); loadFacets(); loadGrid();
+  bindMenus(); bindSearch(); loadFacets();
+  var bootPid = readURL();
+  var si = document.getElementById('btSearch'); if (si) si.value = F.s;
+  renderActive();
+  loadGrid();
+  if (bootPid) openPDP(bootPid);
 })();

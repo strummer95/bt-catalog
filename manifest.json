@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.3.6",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.3.6.zip",
+  "version": "0.3.7",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.3.7.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Instant updates via GitHub API (no CDN wait). This is the last version that updates with any delay; from here updates are immediate."
+  "changelog": "Color swatches paint correctly (block-level). Shareable URLs: filters, search, page, and the open product are saved in the address bar and restored from a shared link. Instant updates via GitHub API."
 }
