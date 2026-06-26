@@ -47,11 +47,7 @@
 
   /* ---------- shell ---------- */
   root.innerHTML =
-    '<section class="hero"><div class="wrap">' +
-      '<span class="eyebrow">Boomer T\'s · Blank Apparel</span>' +
-      '<h1>Browse Products. Get a <span>quote.</span></h1>' +
-      '<p>Browse every garment we print &amp; stitch, build your sizes, and send it to our quote desk.</p>' +
-    '</div></section>' +
+    '<section class="hero"><div class="wrap">' +      '<h1>Browse Products. Get a <span>quote.</span></h1>' +    '</div></section>' +
     '<div class="wrap"><div style="display:flex;justify-content:flex-end;padding:12px 0 2px"><button id="btFab" class="btcat-fab">My Quote \u00b7 <span id="btBadge">0</span></button></div></div>' +
     '<div class="wrap"><div class="catnav">' +
       '<nav class="cmenus">' +
