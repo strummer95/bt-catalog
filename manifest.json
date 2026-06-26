@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.7.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.3.zip",
+  "version": "0.7.4",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.4.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar diagnostics: Preview now shows the exact SOAP request being sent (to fix the 'wsVersion not found' request-format issue), and Test Connection now reports SanMar's real error instead of a false success."
+  "changelog": "SanMar: send wsVersion 1.0.0 to match the Product Data endpoint version (fixes the 'wsVersion not found' rejection)."
 }

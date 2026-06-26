@@ -66,7 +66,7 @@ function bt_cat_sanmar_test($style = 'PC61') {
     $client = $c['client'];
 
     $args = array(
-        'wsVersion'            => '2.0.0',
+        'wsVersion'            => '1.0.0',
         'id'                   => $creds['id'],
         'password'             => $creds['pw'],
         'localizationCountry'  => 'US',
@@ -131,7 +131,7 @@ function bt_cat_sanmar_preview($style = 'PC61') {
     if ($c['client'] === null) return array('ok' => false, 'message' => $c['error']);
     try {
         $resp = $c['client']->getProduct(array(
-            'wsVersion' => '2.0.0', 'id' => $creds['id'], 'password' => $creds['pw'],
+            'wsVersion' => '1.0.0', 'id' => $creds['id'], 'password' => $creds['pw'],
             'localizationCountry' => 'US', 'localizationLanguage' => 'en', 'productId' => $style,
         ));
     } catch (Throwable $e) {
