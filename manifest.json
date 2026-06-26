@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.6.6",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.6.zip",
+  "version": "0.6.7",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.7.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Mobile color preview is now tucked into the swatch grid itself, spanning the first 2 columns of the top 2 rows, with the color swatches wrapping around it."
+  "changelog": "Fix quote items overflowing the drawer width on mobile: the per-item size inputs now lay out in a grid that always fits and wraps within the line, the inputs fill their cells, and the drawer width is hardened against odd theme containers."
 }

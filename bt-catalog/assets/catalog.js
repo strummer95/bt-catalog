@@ -277,7 +277,7 @@
     var d = document.getElementById('btDrawer');
     document.getElementById('btScrim').style.display='block';
     d.style.cssText = 'display:flex;flex-direction:column;position:fixed;top:0;right:0;bottom:0;z-index:80;'+
-      'width:420px;max-width:100%;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.18);transform:translateX(0)';
+      'width:min(420px,100vw);max-width:100vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.18);transform:translateX(0)';
     d.classList.add('show');
     document.documentElement.style.overflow='hidden';
     renderDrawer();
