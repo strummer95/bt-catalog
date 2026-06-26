@@ -87,8 +87,15 @@ function bt_cat_rest_list($req) {
         $args[] = $nb;
     }
     if ($cat !== '') {
-        $where[] = "category = %s";
-        $args[] = $cat;
+        $buckets = bt_cat_cat_buckets();
+        if (isset($buckets[$cat])) {
+            $ors = array();
+            foreach ($buckets[$cat] as $sub) { $ors[] = "category LIKE %s"; $args[] = '%' . $wpdb->esc_like($sub) . '%'; }
+            $where[] = '(' . implode(' OR ', $ors) . ')';
+        } else {
+            $where[] = "category = %s";
+            $args[] = $cat;
+        }
     }
     if ($color !== '') {
         $terms = bt_cat_family_terms($color);
@@ -166,5 +173,26 @@ function bt_cat_rest_facets() {
     $t = bt_cat_table();
     $brands = $wpdb->get_col("SELECT DISTINCT brand FROM $t WHERE detail_done=1 AND brand<>'' ORDER BY brand ASC");
     $cats   = $wpdb->get_col("SELECT DISTINCT category FROM $t WHERE detail_done=1 AND category<>'' ORDER BY category ASC");
+    $seen = array();
+    foreach ($cats as $c) { $b = bt_cat_norm_category($c); if ($b !== '') $seen[$b] = true; }
+    $cats = array_keys($seen);
+    sort($cats);
     return array('brands' => $brands, 'categories' => $cats);
+}
+
+/* Category buckets: collapse S&S baseCategory variants into clean display labels.
+   First match wins; substrings are case-insensitive. Used by both facets (collapse)
+   and the list filter (expand a bucket back to all matching raw categories). */
+function bt_cat_cat_buckets() {
+    return array(
+        'T-Shirts' => array('t-shirt', 'tshirt', 't shirt', 'tee'),
+        'Fleece'   => array('fleece'),
+    );
+}
+function bt_cat_norm_category($raw) {
+    $low = strtolower((string) $raw);
+    foreach (bt_cat_cat_buckets() as $label => $subs) {
+        foreach ($subs as $s) { if (strpos($low, $s) !== false) return $label; }
+    }
+    return $raw;
 }

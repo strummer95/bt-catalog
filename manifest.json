@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.5.5",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.5.zip",
+  "version": "0.5.6",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.6.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Restored the left-hand filter sidebar (Categories, Colors, Brands) alongside the header dropdowns. Both stay in sync and the active filter is highlighted. Sidebar hides on mobile where the dropdowns take over."
+  "changelog": "Category filter collapses all T-Shirt variants to 'T-Shirts' and all Fleece variants to 'Fleece'. Sidebar is more compact (smaller font, tighter padding) and now scrolls as one panel pinned to the viewport instead of per-section."
 }
