@@ -205,10 +205,8 @@
           '<div class="desc">'+(p.desc||'')+'</div>' +
           '<ul class="specs">'+ specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +
           '<div class="lab">Sizes &amp; quantity</div>' +
-          '<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">' +
-            '<div class="sizegrid" id="btSizes" style="flex:1;min-width:240px"></div>' +
-            '<button class="addbtn" id="btAdd" style="margin-top:0;flex-shrink:0">Add to Quote</button>' +
-          '</div>' +
+          '<div class="sizegrid" id="btSizes"></div>' +
+          '<button class="addbtn" id="btAdd" style="margin-top:12px">Add to Quote</button>' +
           '<div class="lab">Color <span id="btColorName" style="color:#8a8aa0;text-transform:none;letter-spacing:0"></span></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
         '</div></div></div>';
