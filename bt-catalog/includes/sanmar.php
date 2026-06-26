@@ -21,8 +21,9 @@ if (!defined('BT_SANMAR_WSDL_PRICE'))   define('BT_SANMAR_WSDL_PRICE',   'https:
 
 function bt_cat_sanmar_creds() {
     return array(
-        'id' => trim((string) get_option('bt_cat_sanmar_id', '')),
-        'pw' => (string) get_option('bt_cat_sanmar_pw', ''),
+        'id'   => trim((string) get_option('bt_cat_sanmar_id', '')),
+        'pw'   => (string) get_option('bt_cat_sanmar_pw', ''),
+        'cust' => trim((string) get_option('bt_cat_sanmar_cust', '')),
     );
 }
 
@@ -130,6 +131,7 @@ function bt_cat_sanmar_page() {
     if (isset($_POST['bt_cat_save_sanmar'])) {
         check_admin_referer('bt_cat_sanmar');
         update_option('bt_cat_sanmar_id', sanitize_text_field(wp_unslash($_POST['sanmar_id'] ?? '')));
+        update_option('bt_cat_sanmar_cust', sanitize_text_field(wp_unslash($_POST['sanmar_cust'] ?? '')));
         if (isset($_POST['sanmar_pw']) && $_POST['sanmar_pw'] !== '') {
             update_option('bt_cat_sanmar_pw', wp_unslash($_POST['sanmar_pw']));
         }
@@ -148,11 +150,10 @@ function bt_cat_sanmar_page() {
         <h1>SanMar</h1>
         <p class="description" style="max-width:760px">Pulls SanMar styles that S&amp;S doesn't carry (their exclusive lines &mdash; Port Authority, Port &amp; Company, District, Sport-Tek, CornerStone, OGIO, etc.) into the same catalog, via SanMar's PromoStandards web service. No API key &mdash; it authenticates with your SanMar.com login.</p>
 
-        <div class="notice notice-info inline" style="max-width:760px;margin:14px 0"><p style="margin:.6em 0"><strong>Before this can connect, two things must be true on the live server:</strong></p>
-            <ol style="margin:0 0 .6em 18px">
-                <li>Your SanMar account is <strong>onboarded for Web Services access</strong> (email <code>sanmarintegrations@sanmar.com</code> if unsure).</li>
-                <li>This server's <strong>outbound IP is whitelisted by SanMar</strong> and <strong>port 8080</strong> is open outbound. SanMar whitelists callers, so give their integrations team boomerts.com's server IP.</li>
-            </ol>
+        <div class="notice notice-info inline" style="max-width:760px;margin:14px 0"><p style="margin:.6em 0"><strong>Your account is already onboarded for SanMar automation, so web-services access is set.</strong> Read-only product/pricing/media (what this catalog uses) doesn't need the "automated purchasing" activation. The one thing still worth checking:</p>
+            <ul style="margin:0 0 .6em 18px;list-style:disc">
+                <li>SanMar whitelists the <strong>calling server's IP</strong>. Chipply calls from Chipply's servers; this plugin calls from <strong>boomerts.com's server</strong>. If the test below fails to connect, give SanMar integrations (<code>sanmarintegrations@sanmar.com</code>) this server's outbound IP to whitelist, and make sure <strong>port 8080</strong> is open outbound.</li>
+            </ul>
             <p style="margin:.4em 0">PHP SOAP extension on this server: <strong style="color:<?php echo $soap ? '#1a7f37' : '#b32d2e'; ?>"><?php echo $soap ? 'enabled ✓' : 'NOT enabled — required'; ?></strong></p>
         </div>
 
@@ -160,14 +161,21 @@ function bt_cat_sanmar_page() {
             <?php wp_nonce_field('bt_cat_sanmar'); ?>
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><label for="sanmar_id">SanMar username / customer #</label></th>
-                    <td><input name="sanmar_id" id="sanmar_id" type="text" class="regular-text" value="<?php echo esc_attr($creds['id']); ?>" autocomplete="off"></td>
+                    <th scope="row"><label for="sanmar_id">SanMar username</label></th>
+                    <td><input name="sanmar_id" id="sanmar_id" type="text" class="regular-text" value="<?php echo esc_attr($creds['id']); ?>" autocomplete="off" placeholder="e.g. boomerts"></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="sanmar_pw">SanMar password</label></th>
                     <td>
                         <input name="sanmar_pw" id="sanmar_pw" type="password" class="regular-text" value="" placeholder="<?php echo $creds['pw'] !== '' ? '•••••••• (saved — leave blank to keep)' : ''; ?>" autocomplete="new-password">
                         <p class="description">Stored on the server only, never in the repo. Leave blank to keep the saved password.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="sanmar_cust">Customer number</label></th>
+                    <td>
+                        <input name="sanmar_cust" id="sanmar_cust" type="text" class="regular-text" value="<?php echo esc_attr($creds['cust']); ?>" autocomplete="off" placeholder="e.g. 108175">
+                        <p class="description">Used for your account-specific pricing.</p>
                     </td>
                 </tr>
             </table>
