@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.7.4",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.4.zip",
+  "version": "0.7.5",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.5.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar: send wsVersion 1.0.0 to match the Product Data endpoint version (fixes the 'wsVersion not found' rejection)."
+  "changelog": "SanMar: getProduct now parses (brand/name/category/colors/sizes). Added 'Preview full import' that also pulls images (Media Content) and your cost (Pricing) for one style and shows per-service status, to verify all three before bulk import."
 }

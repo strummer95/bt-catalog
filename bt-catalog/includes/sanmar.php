@@ -146,16 +146,133 @@ function bt_cat_sanmar_preview($style = 'PC61') {
     return array('ok' => true, 'message' => 'Diagnostic for "' . $style . '":', 'json' => $out);
 }
 
-/** Trim large sequential arrays to $max entries (recursive), to keep previews readable. */
-function bt_cat_sanmar_trim($v, $max) {
-    if (!is_array($v)) return $v;
-    $isList = array_keys($v) === range(0, count($v) - 1);
-    if ($isList && count($v) > $max) {
-        $v = array_slice($v, 0, $max);
-        $v[] = '… (' . 'trimmed' . ')';
+/** Normalize a PromoStandards node that may be a single object or a list into a list. */
+function bt_cat_sanmar_list($node) {
+    if (!is_array($node)) return array();
+    // associative (single object) vs sequential (already a list)
+    if (array_keys($node) === range(0, count($node) - 1)) return $node;
+    return array($node);
+}
+
+/** Generic SanMar SOAP call. Returns ['ok','data','error','request']. */
+function bt_cat_sanmar_call($wsdl, $method, $args) {
+    $c = bt_cat_sanmar_client($wsdl);
+    if ($c['client'] === null) return array('ok' => false, 'error' => $c['error'], 'request' => '');
+    try {
+        $resp = $c['client']->$method($args);
+    } catch (Throwable $e) {
+        $req = method_exists($c['client'], '__getLastRequest') ? (string) $c['client']->__getLastRequest() : '';
+        return array('ok' => false, 'error' => $e->getMessage(), 'request' => $req);
     }
-    foreach ($v as $k => $vv) { if ($k !== count($v) - 1 || $vv !== '… (trimmed)') $v[$k] = bt_cat_sanmar_trim($vv, $max); }
-    return $v;
+    $req  = method_exists($c['client'], '__getLastRequest') ? (string) $c['client']->__getLastRequest() : '';
+    $data = json_decode(json_encode($resp), true);
+    if (is_array($data) && (isset($data['ErrorMessage']) || isset($data['errorMessage']))) {
+        $desc = bt_cat_sanmar_find_key($data, array('description', 'message'));
+        return array('ok' => false, 'error' => 'SanMar: ' . ($desc ?: 'error'), 'request' => $req, 'data' => $data);
+    }
+    return array('ok' => true, 'data' => $data, 'request' => $req);
+}
+
+/** getProduct (1.0.0) -> structured product. */
+function bt_cat_sanmar_product($style) {
+    $cr = bt_cat_sanmar_creds();
+    $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRODUCT, 'getProduct', array(
+        'wsVersion' => '1.0.0', 'id' => $cr['id'], 'password' => $cr['pw'],
+        'localizationCountry' => 'US', 'localizationLanguage' => 'en', 'productId' => $style,
+    ));
+    if (!$r['ok']) return $r;
+    $p = isset($r['data']['Product']) ? $r['data']['Product'] : array();
+
+    $desc = isset($p['description']) ? (is_array($p['description']) ? implode(' ', array_filter($p['description'], 'is_string')) : (string) $p['description']) : '';
+    $cat  = bt_cat_sanmar_find_key(isset($p['ProductCategoryArray']) ? $p['ProductCategoryArray'] : array(), array('category')) ?: '';
+
+    $colors = array();  // colorName => true (ordered)
+    $sizes  = array();  // labelSize => true (ordered)
+    $parts  = isset($p['ProductPartArray']['ProductPart']) ? bt_cat_sanmar_list($p['ProductPartArray']['ProductPart']) : array();
+    foreach ($parts as $part) {
+        $cn = bt_cat_sanmar_find_key(isset($part['ColorArray']) ? $part['ColorArray'] : array(), array('colorName'));
+        $sz = isset($part['ApparelSize']['labelSize']) ? $part['ApparelSize']['labelSize'] : null;
+        if ($cn) $colors[$cn] = true;
+        if ($sz) $sizes[$sz] = true;
+    }
+    return array(
+        'ok'       => true,
+        'brand'    => isset($p['productBrand']) ? $p['productBrand'] : '',
+        'name'     => isset($p['productName']) ? $p['productName'] : $style,
+        'category' => $cat,
+        'desc'     => $desc,
+        'colors'   => array_keys($colors),
+        'sizes'    => array_keys($sizes),
+        'request'  => $r['request'],
+    );
+}
+
+/** getMediaContent -> [colorName => image url]. Tries wsVersion 1.1.0. */
+function bt_cat_sanmar_media($style) {
+    $cr = bt_cat_sanmar_creds();
+    $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_MEDIA, 'getMediaContent', array(
+        'wsVersion' => '1.1.0', 'id' => $cr['id'], 'password' => $cr['pw'],
+        'mediaType' => 'Image', 'productId' => $style,
+    ));
+    if (!$r['ok']) return $r;
+    $out = array();
+    $items = bt_cat_sanmar_find_key($r['data'], array('MediaContentArray'));
+    // Walk the data for MediaContent entries (url + color).
+    $list = array();
+    if (isset($r['data']['MediaContentArray']['MediaContent'])) $list = bt_cat_sanmar_list($r['data']['MediaContentArray']['MediaContent']);
+    foreach ($list as $m) {
+        $url   = bt_cat_sanmar_find_key($m, array('url'));
+        $color = bt_cat_sanmar_find_key($m, array('color', 'colorName'));
+        if ($url && $color && !isset($out[$color])) $out[$color] = $url;
+    }
+    return array('ok' => true, 'images' => $out, 'count' => count($list), 'request' => $r['request']);
+}
+
+/** getConfigurationAndPricing -> lowest piece (your) cost. Tries wsVersion 1.0.0, Customer pricing. */
+function bt_cat_sanmar_pricing($style) {
+    $cr = bt_cat_sanmar_creds();
+    $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRICE, 'getConfigurationAndPricing', array(
+        'wsVersion' => '1.0.0', 'id' => $cr['id'], 'password' => $cr['pw'],
+        'productId' => $style, 'currency' => 'USD', 'fobId' => '1',
+        'priceType' => 'Customer', 'localizationCountry' => 'US', 'localizationLanguage' => 'en',
+        'configurationType' => 'Blank',
+    ));
+    if (!$r['ok']) return $r;
+    // Find all numeric "price" values; take the lowest as the piece/base cost.
+    $prices = array();
+    array_walk_recursive($r['data'], function ($v, $k) use (&$prices) {
+        if (in_array($k, array('price', 'salePrice'), true) && is_numeric($v)) $prices[] = (float) $v;
+    });
+    $cost = $prices ? min($prices) : 0;
+    return array('ok' => true, 'cost' => $cost, 'request' => $r['request']);
+}
+
+/** Assemble a full catalog row for one SanMar style (no DB write). */
+function bt_cat_sanmar_assemble($style) {
+    $prod  = bt_cat_sanmar_product($style);
+    if (!$prod['ok']) return array('ok' => false, 'stage' => 'product', 'error' => $prod['error'] ?? 'product failed', 'request' => $prod['request'] ?? '');
+    $media = bt_cat_sanmar_media($style);
+    $price = bt_cat_sanmar_pricing($style);
+
+    $images = (!empty($media['ok'])) ? $media['images'] : array();
+    $colors = array();
+    foreach ($prod['colors'] as $cn) {
+        $colors[] = array('name' => $cn, 'hex' => '', 'img' => isset($images[$cn]) ? $images[$cn] : '', 'swatch' => '');
+    }
+    return array(
+        'ok'       => true,
+        'brand'    => $prod['brand'],
+        'name'     => $prod['name'],
+        'category' => $prod['category'],
+        'desc'     => $prod['desc'],
+        'sizes'    => $prod['sizes'],
+        'colors'   => $colors,
+        'cost'     => (!empty($price['ok'])) ? $price['cost'] : 0,
+        'media_ok' => !empty($media['ok']),
+        'media_err'=> empty($media['ok']) ? ($media['error'] ?? '') : '',
+        'price_ok' => !empty($price['ok']),
+        'price_err'=> empty($price['ok']) ? ($price['error'] ?? '') : '',
+    );
 }
 
 /* ---------------- Admin submenu ---------------- */
@@ -194,6 +311,12 @@ function bt_cat_sanmar_page() {
     if (isset($_POST['bt_cat_preview_sanmar'])) {
         check_admin_referer('bt_cat_sanmar');
         $preview = bt_cat_sanmar_preview(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
+    }
+
+    $full = null;
+    if (isset($_POST['bt_cat_full_sanmar'])) {
+        check_admin_referer('bt_cat_sanmar');
+        $full = bt_cat_sanmar_assemble(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
     }
 
     $creds = bt_cat_sanmar_creds();
@@ -241,8 +364,32 @@ function bt_cat_sanmar_page() {
                 <label>Style to test: <input name="sanmar_test_style" type="text" value="PC61" class="small-text"></label>
                 &nbsp;<button type="submit" name="bt_cat_test_sanmar" value="1" class="button">Test connection</button>
                 &nbsp;<button type="submit" name="bt_cat_preview_sanmar" value="1" class="button">Preview structure</button>
+                &nbsp;<button type="submit" name="bt_cat_full_sanmar" value="1" class="button button-secondary">Preview full import</button>
             </p>
         </form>
+
+        <?php if ($full !== null): ?>
+            <div class="notice notice-<?php echo !empty($full['ok']) ? 'success' : 'error'; ?>" style="max-width:900px">
+                <?php if (empty($full['ok'])): ?>
+                    <p><strong>Product fetch failed at stage "<?php echo esc_html($full['stage'] ?? ''); ?>":</strong> <?php echo esc_html($full['error'] ?? ''); ?></p>
+                    <?php if (!empty($full['request'])): ?><details><summary style="cursor:pointer">Request sent</summary><textarea readonly rows="6" class="large-text code" style="font-size:11px"><?php echo esc_textarea($full['request']); ?></textarea></details><?php endif; ?>
+                <?php else: ?>
+                    <p style="margin:.6em 0"><strong>Assembled "<?php echo esc_html($full['name']); ?>"</strong></p>
+                    <table class="widefat striped" style="max-width:640px">
+                        <tr><td style="width:130px"><strong>Brand</strong></td><td><?php echo esc_html($full['brand']); ?></td></tr>
+                        <tr><td><strong>Category</strong></td><td><?php echo esc_html($full['category']); ?></td></tr>
+                        <tr><td><strong>Sizes</strong></td><td><?php echo esc_html(implode(', ', $full['sizes'])); ?></td></tr>
+                        <tr><td><strong>Colors</strong></td><td><?php echo (int) count($full['colors']); ?> (<?php echo esc_html(implode(', ', array_slice(array_map(function($c){return $c['name'];}, $full['colors']), 0, 8))); ?>…)</td></tr>
+                        <tr><td><strong>Your cost</strong></td><td><?php echo $full['price_ok'] ? '$' . number_format((float) $full['cost'], 2) : '<span style="color:#b32d2e">PRICING: ' . esc_html($full['price_err']) . '</span>'; ?></td></tr>
+                        <tr><td><strong>Images</strong></td><td><?php
+                            if (!$full['media_ok']) { echo '<span style="color:#b32d2e">MEDIA: ' . esc_html($full['media_err']) . '</span>'; }
+                            else { $withImg = array_filter($full['colors'], function($c){ return $c['img'] !== ''; }); echo (int) count($withImg) . ' of ' . (int) count($full['colors']) . ' colors have an image'; $first = reset($withImg); if ($first) echo '<br><span style="font-size:11px;color:#666;word-break:break-all">' . esc_html($first['img']) . '</span>'; }
+                        ?></td></tr>
+                    </table>
+                    <p class="description">Product data is parsing. If pricing or images show an error above, paste it to me and I'll fix that service — then I build the bulk importer.</p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($preview !== null): ?>
             <div class="notice notice-<?php echo $preview['ok'] ? 'info' : 'error'; ?>" style="max-width:900px">
