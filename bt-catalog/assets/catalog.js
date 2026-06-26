@@ -239,6 +239,10 @@
       currentColor = s.getAttribute('data-c');
       box.querySelectorAll('.copt').forEach(function(x){ x.classList.remove('sel'); });
       s.classList.add('sel'); setColorName(); swapImage();
+      if (window.innerWidth <= 860) {
+        var pdpEl = document.getElementById('btPdp');
+        if (pdpEl) { try { pdpEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ pdpEl.scrollTop = 0; } }
+      }
     }); });
     swapImage();
   }
