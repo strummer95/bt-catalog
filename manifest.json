@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.6.5",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.5.zip",
+  "version": "0.6.6",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.6.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Product page now uses the normal page scroll instead of a separate inner scrollbar (it hides the catalog behind it and restores your spot on Back). Also fixed the mobile color preview thumbnail not appearing (a CSS rule was overriding it)."
+  "changelog": "Mobile color preview is now tucked into the swatch grid itself, spanning the first 2 columns of the top 2 rows, with the color swatches wrapping around it."
 }

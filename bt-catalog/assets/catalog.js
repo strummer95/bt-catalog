@@ -209,7 +209,6 @@
           '<div class="sizegrid" id="btSizes"></div>' +
           '<button class="addbtn" id="btAdd" style="margin-top:12px">Add to Quote</button>' +
           '<div class="lab">Color <span id="btColorName" style="color:#8a8aa0;text-transform:none;letter-spacing:0"></span></div>' +
-          '<div class="colorprev" id="btColorPrev"></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
         '</div></div></div>';
       pdp.style.cssText = '';
@@ -229,7 +228,7 @@
 
   function renderColors(p){
     var box = document.getElementById('btColors2');
-    box.innerHTML = p.colors.map(function(c){
+    box.innerHTML = '<div class="colorprev" id="btColorPrev"></div>' + p.colors.map(function(c){
       var sel = c.name === currentColor ? ' sel' : '';
       var bg = c.swatch
         ? 'background-image:url('+c.swatch+');background-size:cover;background-position:center'
