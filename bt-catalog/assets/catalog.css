@@ -45,3 +45,6 @@
 #btcat-root .dbody{overflow-x:hidden}
 #btcat-root .qline{min-width:0}
 #btcat-root .qline .meta{min-width:0}
+#btcat-root .herorow{display:flex;align-items:center;justify-content:space-between;gap:14px}
+#btcat-root .herorow h1{margin:0;min-width:0}
+#btcat-root .herorow .btcat-fab{flex-shrink:0}
