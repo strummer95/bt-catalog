@@ -35,6 +35,7 @@
   var quote = [], dStep = 1, method = 'print', locs = 1, embType = 'text', sent = false;
   var lastEst = null;
   var contact = { name:'', email:'', phone:'', notes:'' };
+  var btScrollMem = 0;
 
   var root = document.getElementById('btcat-root');
   if (!root) return;
@@ -211,20 +212,20 @@
           '<div class="colorprev" id="btColorPrev"></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
         '</div></div></div>';
-      pdp.className = 'pdp open';
-      pdp.style.cssText = 'display:block;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#fff;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch';
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
+      pdp.style.cssText = '';
+      pdp.className = 'pdp show';
+      root.classList.add('bt-pdp-open');
+      btScrollMem = window.scrollY || window.pageYOffset || 0;
+      window.scrollTo(0, 0);
       pdp.querySelector('.back').addEventListener('click', closePDP);
 
       renderColors(current);
       renderSizes(current);
       document.getElementById('btAdd').addEventListener('click', addToQuote);
-      pdp.scrollTop = 0;
       curPid = String(id); syncURL();
     }).catch(function(err){ console.error('BT Catalog: item fetch error', err); alert('Sorry — could not load that product.'); });
   }
-  function closePDP(){ var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none'; document.documentElement.style.overflow=''; document.body.style.overflow=''; curPid=null; syncURL(); }
+  function closePDP(){ var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none'; root.classList.remove('bt-pdp-open'); window.scrollTo(0, btScrollMem||0); curPid=null; syncURL(); }
 
   function renderColors(p){
     var box = document.getElementById('btColors2');

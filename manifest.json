@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.6.4",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.4.zip",
+  "version": "0.6.5",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.5.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Mobile color picking is self-contained now: removed the auto-scroll and added a small live preview of the garment in the selected color right above the swatches, so you can preview colors without scrolling. Product info and sizes still come first."
+  "changelog": "Product page now uses the normal page scroll instead of a separate inner scrollbar (it hides the catalog behind it and restores your spot on Back). Also fixed the mobile color preview thumbnail not appearing (a CSS rule was overriding it)."
 }

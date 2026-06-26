@@ -30,12 +30,14 @@
 #btcat-root .pdp .desc p{margin:4px 0}
 #btcat-root .poptag{position:absolute;top:9px;left:9px;z-index:2;background:var(--pink);color:#fff;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:5px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
 /* PDP overflow safety: never let description media or long words widen the page */
-#btcat-root .pdp{overflow-x:hidden}
-#btcat-root .pdp .wrap{overflow-x:hidden}
+#btcat-root .pdp{overflow-x:clip}
+#btcat-root .pdp .wrap{overflow-x:clip}
 #btcat-root .desc{overflow-wrap:break-word;word-break:break-word}
 #btcat-root .desc img,#btcat-root .desc table,#btcat-root .desc iframe{max-width:100%;height:auto}
 #btcat-root .desc table{display:block;overflow-x:auto}
 #btcat-root .pdp h1,#btcat-root .pname{overflow-wrap:break-word}
 #btcat-root .specs li{flex-wrap:wrap}
 #btcat-root .specs li span{min-width:0;overflow-wrap:break-word}
-#btcat-root .colorprev{display:none}
+@media(min-width:861px){#btcat-root .colorprev{display:none}}
+
+#btcat-root.bt-pdp-open > :not(#btPdp):not(#btDrawer):not(#btScrim){display:none}
