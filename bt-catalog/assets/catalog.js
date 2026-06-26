@@ -48,7 +48,7 @@
   /* ---------- shell ---------- */
   root.innerHTML =
     '<section class="hero"><div class="wrap herorow">' +
-      '<h1>Browse Products. Get a <span>quote.</span></h1>' +
+      '<h1>Browse Products. Get a <span>Quote.</span></h1>' +
       '<button id="btFab" class="btcat-fab">My Quote \u00b7 <span id="btBadge">0</span></button>' +
     '</div></section>' +
     '<div class="wrap"><div class="catnav">' +
