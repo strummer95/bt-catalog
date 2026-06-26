@@ -87,10 +87,19 @@ function bt_cat_sanmar_test($style = 'PC61') {
     }
 
     // Try to surface something human from the response without assuming exact shape.
-    $name = '';
     $json = json_decode(json_encode($resp), true);
+    $err  = is_array($json) ? bt_cat_sanmar_find_key($json, array('description', 'Description', 'message', 'Message')) : null;
+    $errCode = is_array($json) ? bt_cat_sanmar_find_key($json, array('code', 'Code')) : null;
+    // If there's an ErrorMessage block, treat as failure.
+    if (is_array($json) && (isset($json['ErrorMessage']) || isset($json['errorMessage']))) {
+        return array(
+            'ok'      => false,
+            'message' => 'SanMar rejected the request' . ($errCode ? ' (code ' . $errCode . ')' : '') . ': ' . ($err ?: 'unknown error') . '. The request format needs adjusting — use Preview structure and send me the output.',
+            'detail'  => method_exists($client, '__getLastRequest') ? (string) $client->__getLastRequest() : '',
+        );
+    }
+    $name = '';
     if (is_array($json)) {
-        // common PromoStandards paths: Product->productName / ProductName
         $flat = bt_cat_sanmar_find_key($json, array('productName', 'ProductName', 'productBrand', 'ProductBrand'));
         if ($flat !== null) $name = is_scalar($flat) ? (string) $flat : '';
     }
@@ -126,12 +135,15 @@ function bt_cat_sanmar_preview($style = 'PC61') {
             'localizationCountry' => 'US', 'localizationLanguage' => 'en', 'productId' => $style,
         ));
     } catch (Throwable $e) {
-        return array('ok' => false, 'message' => $e->getMessage());
+        $req = method_exists($c['client'], '__getLastRequest') ? (string) $c['client']->__getLastRequest() : '';
+        return array('ok' => false, 'message' => $e->getMessage(), 'json' => "REQUEST WE SENT:\n" . $req);
     }
+    $req  = method_exists($c['client'], '__getLastRequest') ? (string) $c['client']->__getLastRequest() : '';
     $data = json_decode(json_encode($resp), true);
     // Trim any large numeric-indexed arrays (part lists) to first 2 entries for readability.
     $data = bt_cat_sanmar_trim($data, 2);
-    return array('ok' => true, 'message' => 'Parsed structure for "' . $style . '" (part arrays trimmed to 2):', 'json' => wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    $out  = "REQUEST WE SENT:\n" . $req . "\n\n----------\n\nRESPONSE (part arrays trimmed to 2):\n" . wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    return array('ok' => true, 'message' => 'Diagnostic for "' . $style . '":', 'json' => $out);
 }
 
 /** Trim large sequential arrays to $max entries (recursive), to keep previews readable. */
