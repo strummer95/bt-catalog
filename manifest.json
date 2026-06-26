@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.5.6",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.6.zip",
+  "version": "0.5.7",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.7.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Category filter collapses all T-Shirt variants to 'T-Shirts' and all Fleece variants to 'Fleece'. Sidebar is more compact (smaller font, tighter padding) and now scrolls as one panel pinned to the viewport instead of per-section."
+  "changelog": "PDP is far more compact: description bullets and spec rows use a smaller font with tight line spacing, and headings/labels were trimmed, roughly halving the vertical height. Header dropdown menus shifted right to line up with the product grid instead of the filter sidebar."
 }
