@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.6.12",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.12.zip",
+  "version": "0.7.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Capitalized 'Quote' in the hero headline."
+  "changelog": "Groundwork for SanMar as a second supplier: new SanMar settings page with credential fields and a Test Connection button that verifies SanMar's PromoStandards web service (auth, IP whitelisting, port 8080, SOAP availability). Importer comes once the connection test passes."
 }
