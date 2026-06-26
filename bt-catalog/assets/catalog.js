@@ -211,7 +211,7 @@
           '<div class="colorgrid" id="btColors2"></div>' +
         '</div></div></div>';
       pdp.className = 'pdp open';
-      pdp.style.cssText = 'display:block;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch';
+      pdp.style.cssText = 'display:block;position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#fff;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch';
       document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
       pdp.querySelector('.back').addEventListener('click', closePDP);

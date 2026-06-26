@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.6.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.0.zip",
+  "version": "0.6.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Mobile fixes: product detail page now stacks to one column on phones so the product image shows and content no longer runs off the right (an inline style was overriding the mobile layout). Mega-brand dropdown unstacks to 2 columns, and a mobile overflow guard stops horizontal cut-off."
+  "changelog": "Fix sideways scrolling on the product page on mobile: the full-screen product overlay now clips horizontal overflow at the source, and description images/tables/long words are constrained so nothing pushes the page wider than the screen."
 }
