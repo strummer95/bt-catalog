@@ -111,6 +111,41 @@ function bt_cat_sanmar_find_key($arr, $keys) {
     return null;
 }
 
+/**
+ * Pull getProduct for one style and return its structure as readable JSON,
+ * trimmed so big part arrays don't flood the screen. Used to design the parser.
+ */
+function bt_cat_sanmar_preview($style = 'PC61') {
+    $creds = bt_cat_sanmar_creds();
+    if ($creds['id'] === '' || $creds['pw'] === '') return array('ok' => false, 'message' => 'Save credentials first.');
+    $c = bt_cat_sanmar_client(BT_SANMAR_WSDL_PRODUCT);
+    if ($c['client'] === null) return array('ok' => false, 'message' => $c['error']);
+    try {
+        $resp = $c['client']->getProduct(array(
+            'wsVersion' => '2.0.0', 'id' => $creds['id'], 'password' => $creds['pw'],
+            'localizationCountry' => 'US', 'localizationLanguage' => 'en', 'productId' => $style,
+        ));
+    } catch (Throwable $e) {
+        return array('ok' => false, 'message' => $e->getMessage());
+    }
+    $data = json_decode(json_encode($resp), true);
+    // Trim any large numeric-indexed arrays (part lists) to first 2 entries for readability.
+    $data = bt_cat_sanmar_trim($data, 2);
+    return array('ok' => true, 'message' => 'Parsed structure for "' . $style . '" (part arrays trimmed to 2):', 'json' => wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+}
+
+/** Trim large sequential arrays to $max entries (recursive), to keep previews readable. */
+function bt_cat_sanmar_trim($v, $max) {
+    if (!is_array($v)) return $v;
+    $isList = array_keys($v) === range(0, count($v) - 1);
+    if ($isList && count($v) > $max) {
+        $v = array_slice($v, 0, $max);
+        $v[] = '… (' . 'trimmed' . ')';
+    }
+    foreach ($v as $k => $vv) { if ($k !== count($v) - 1 || $vv !== '… (trimmed)') $v[$k] = bt_cat_sanmar_trim($vv, $max); }
+    return $v;
+}
+
 /* ---------------- Admin submenu ---------------- */
 add_action('admin_menu', function () {
     add_submenu_page(
@@ -141,6 +176,12 @@ function bt_cat_sanmar_page() {
     if (isset($_POST['bt_cat_test_sanmar'])) {
         check_admin_referer('bt_cat_sanmar');
         $test = bt_cat_sanmar_test(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
+    }
+
+    $preview = null;
+    if (isset($_POST['bt_cat_preview_sanmar'])) {
+        check_admin_referer('bt_cat_sanmar');
+        $preview = bt_cat_sanmar_preview(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
     }
 
     $creds = bt_cat_sanmar_creds();
@@ -187,8 +228,19 @@ function bt_cat_sanmar_page() {
             <p>
                 <label>Style to test: <input name="sanmar_test_style" type="text" value="PC61" class="small-text"></label>
                 &nbsp;<button type="submit" name="bt_cat_test_sanmar" value="1" class="button">Test connection</button>
+                &nbsp;<button type="submit" name="bt_cat_preview_sanmar" value="1" class="button">Preview structure</button>
             </p>
         </form>
+
+        <?php if ($preview !== null): ?>
+            <div class="notice notice-<?php echo $preview['ok'] ? 'info' : 'error'; ?>" style="max-width:900px">
+                <p><strong><?php echo esc_html($preview['message']); ?></strong></p>
+                <?php if (!empty($preview['json'])): ?>
+                    <textarea readonly rows="22" class="large-text code" style="font-size:11px"><?php echo esc_textarea($preview['json']); ?></textarea>
+                    <p class="description">Copy this and send it to me — it shows the exact field names so I can build the import parser correctly.</p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($test !== null): ?>
             <div class="notice notice-<?php echo $test['ok'] ? 'success' : 'error'; ?>" style="max-width:760px">

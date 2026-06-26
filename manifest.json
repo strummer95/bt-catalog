@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.7.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.1.zip",
+  "version": "0.7.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar settings now have separate Username and Customer Number fields (customer number feeds account pricing). Notes updated: web-services onboarding is done via your automation setup; the remaining check is whitelisting boomerts.com's server IP with SanMar."
+  "changelog": "SanMar connection confirmed working. Added a 'Preview structure' button that shows the actual SanMar product data shape, used to build the import parser accurately before the bulk import."
 }
