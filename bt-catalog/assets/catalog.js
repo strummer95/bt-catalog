@@ -185,6 +185,26 @@
     el.querySelectorAll('[data-go]').forEach(function(b){ b.addEventListener('click', function(){ if(b.disabled) return; F.page=parseInt(b.getAttribute('data-go'),10); syncURL(); loadGrid(); window.scrollTo({top:root.offsetTop,behavior:'smooth'}); }); });
   }
 
+  /* ---------- preferred default colorway (navy-first), mirrors rest.php ---------- */
+  function hexRgb(hex){ var h=String(hex||'').replace('#',''); if(h.length===3){h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];} if(!/^[0-9a-fA-F]{6}$/.test(h)) return null; return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]; }
+  function colorRank(name, hex){
+    var n=String(name||'').trim().toLowerCase();
+    if (n==='navy') return 0;
+    if (n.indexOf('navy')!==-1) return 1;
+    var rgb=hexRgb(hex), lum=rgb?((rgb[0]+rgb[1]+rgb[2])/3):null;
+    if (rgb && lum<120 && (n.indexOf('blue')!==-1 || (rgb[2]>rgb[0]+15 && rgb[2]>rgb[1]+15))) return 2;
+    if (/gray|grey|charcoal|graphite/.test(n)) return 3;
+    if (rgb){ var mx=Math.max.apply(null,rgb), mn=Math.min.apply(null,rgb); if ((mx-mn)<=30 && lum>=50 && lum<=215) return 3; }
+    return 99;
+  }
+  function preferredColorIdx(colors){
+    var best=-1, br=999;
+    for (var i=0;i<colors.length;i++){ if(!colors[i] || !colors[i].img) continue; var r=colorRank(colors[i].name, colors[i].hex); if(r<br){br=r;best=i;} }
+    if (best>=0) return best;
+    for (var j=0;j<colors.length;j++){ if(colors[j] && colors[j].img) return j; }
+    return 0;
+  }
+
   /* ---------- product detail ---------- */
   function openPDP(id){
     api('catalog/item?id=' + id).then(function(p){
@@ -193,7 +213,7 @@
       var specs  = Array.isArray(p.specs)  ? p.specs  : [];
       var sizes  = (Array.isArray(p.sizes) && p.sizes.length) ? p.sizes : ['S','M','L','XL','2XL'];
       current = p; current.colors = colors; current.sizes = sizes;
-      currentColor = (colors[0] && colors[0].name) || null;
+      currentColor = (colors[preferredColorIdx(colors)] || {}).name || (colors[0] && colors[0].name) || null;
 
       var pdp = document.getElementById('btPdp');
       pdp.innerHTML =

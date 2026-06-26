@@ -148,7 +148,9 @@ function bt_cat_rest_rows_to_items($rows) {
     foreach ((array) $rows as $r) {
         $cols  = json_decode($r['colors'], true);
         $cols  = is_array($cols) ? $cols : array();
-        $thumb = !empty($cols[0]['img']) ? $cols[0]['img'] : '';
+        $pidx  = bt_cat_preferred_color_idx($cols);
+        $thumb = (isset($cols[$pidx]['img']) && $cols[$pidx]['img'] !== '') ? $cols[$pidx]['img']
+                 : (!empty($cols[0]['img']) ? $cols[0]['img'] : '');
         $pop = false;
         if (!empty($popList)) {
             $nb = bt_cat_brand_norm($r['brand']);
@@ -225,4 +227,38 @@ function bt_cat_norm_category($raw) {
         foreach ($subs as $s) { if (strpos($low, $s) !== false) return $label; }
     }
     return $raw;
+}
+
+/* ---- Preferred default colorway (navy-first) ----
+   Priority: exact "Navy" -> name contains "navy" -> a dark blue -> gray -> first.
+   Used for the grid thumbnail (and mirrored in catalog.js for the PDP default). */
+function bt_cat_hex_rgb($hex) {
+    $h = ltrim((string) $hex, '#');
+    if (strlen($h) === 3) { $h = $h[0].$h[0].$h[1].$h[1].$h[2].$h[2]; }
+    if (strlen($h) !== 6 || !ctype_xdigit($h)) return null;
+    return array(hexdec(substr($h,0,2)), hexdec(substr($h,2,2)), hexdec(substr($h,4,2)));
+}
+function bt_cat_color_rank($name, $hex) {
+    $n = strtolower(trim((string) $name));
+    if ($n === 'navy') return 0;
+    if (strpos($n, 'navy') !== false) return 1;
+    $rgb = bt_cat_hex_rgb($hex);
+    $lum = $rgb ? (($rgb[0] + $rgb[1] + $rgb[2]) / 3) : null;
+    // a dark blue
+    if ($rgb && $lum < 120 && (strpos($n, 'blue') !== false || ($rgb[2] > $rgb[0] + 15 && $rgb[2] > $rgb[1] + 15))) return 2;
+    // gray (by name or near-neutral hex that isn't black/white)
+    if (preg_match('/gray|grey|charcoal|graphite/', $n)) return 3;
+    if ($rgb) { $mx = max($rgb); $mn = min($rgb); if (($mx - $mn) <= 30 && $lum >= 50 && $lum <= 215) return 3; }
+    return 99;
+}
+function bt_cat_preferred_color_idx($cols) {
+    $best = -1; $bestRank = 999;
+    foreach ((array) $cols as $i => $c) {
+        if (empty($c['img'])) continue; // only colors that actually have a photo
+        $r = bt_cat_color_rank(isset($c['name']) ? $c['name'] : '', isset($c['hex']) ? $c['hex'] : '');
+        if ($r < $bestRank) { $bestRank = $r; $best = $i; }
+    }
+    if ($best >= 0) return $best;
+    foreach ((array) $cols as $i => $c) { if (!empty($c['img'])) return $i; }
+    return 0;
 }
