@@ -60,7 +60,13 @@
       '</nav>' +
       '<div class="csearch">\uD83D\uDD0D<input id="btSearch" placeholder="Search style # or product\u2026"></div>' +
     '</div></div>' +
-    '<div class="wrap shell"><main style="grid-column:1/-1">' +
+    '<div class="wrap shell">' +
+      '<aside class="btside" id="btSide">' +
+        '<div class="fsec"><div class="fhead">Categories</div><div class="fbody" id="fCats"></div></div>' +
+        '<div class="fsec"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
+        '<div class="fsec"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
+      '</aside>' +
+      '<main>' +
       '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div id="btActive"></div></div>' +
       '<div class="grid" id="btGrid"></div>' +
       '<div class="pager" id="btPager"></div>' +
@@ -101,9 +107,18 @@
         FAMILIES.map(function(fm){ return '<div class="megai colori" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('') +
         '</div></div>';
 
+      // sidebar lists (same data attrs as the header menus -> bound together below)
+      var sCats = document.getElementById('fCats');
+      var sCols = document.getElementById('fColors');
+      var sBr   = document.getElementById('fBrands');
+      if (sCats) sCats.innerHTML = c.map(function(x){ return '<div class="fitem" data-cat="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
+      if (sBr)   sBr.innerHTML   = b.map(function(x){ return '<div class="fitem" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
+      if (sCols) sCols.innerHTML = FAMILIES.map(function(fm){ return '<div class="fitem fcolor" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('');
+
       root.querySelectorAll('[data-brand]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('brand', el.getAttribute('data-brand')); }); });
       root.querySelectorAll('[data-cat]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('category', el.getAttribute('data-cat')); }); });
       root.querySelectorAll('[data-color]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('color', el.getAttribute('data-color')); }); });
+      markActive();
     });
   }
 
@@ -119,6 +134,16 @@
     var el = document.getElementById('btActive');
     el.innerHTML = bits.join('');
     el.querySelectorAll('[data-clear]').forEach(function(c){ c.addEventListener('click', function(){ F[c.getAttribute('data-clear')]=''; F.page=1; renderActive(); syncURL(); loadGrid(); }); });
+    markActive();
+  }
+  function markActive(){
+    function on(el){
+      return (el.getAttribute('data-brand') && el.getAttribute('data-brand') === F.brand) ||
+             (el.getAttribute('data-cat')   && el.getAttribute('data-cat')   === F.category) ||
+             (el.getAttribute('data-color') && el.getAttribute('data-color') === F.color);
+    }
+    root.querySelectorAll('.fitem').forEach(function(el){ el.classList.toggle('active', !!on(el)); });
+    root.querySelectorAll('.megai').forEach(function(el){ el.classList.toggle('on', !!on(el)); });
   }
 
   /* ---------- grid ---------- */
