@@ -69,6 +69,8 @@ A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink &
 
 - **Popular styles (DONE, v0.6.0):** New admin "Popular styles" field (option bt_cat_popular, brand-aware via bt_cat_popular() — same syntax as featured). Seeded once on install with Gildan 5000/18000/18500 + Bella Canvas 3001. They float to the top of EVERY list (ORDER BY CASE in bt_cat_rest_list, in configured order) and render a POPULAR pill (.poptag, top-left) on the card; mapper sets item.popular. NOTE: on the unfiltered default page, the featured-resolve order wins (popular pill still shows); popular-to-top applies to searched/filtered lists.
 
+- **Mobile fixes (DONE, v0.6.0):** PDP had an inline grid-template-columns on .pdp-grid that overrode the mobile single-column rule, squishing the image column (looked missing) and pushing content off the right. Removed the inline style (desktop two-col CSS stays; mobile media query stacks). Added to the 860px media query: #btcat-root{overflow-x:hidden} (safe here since the sticky .btside is hidden on mobile), centered/capped .pdp-img, .megabrands to 2 cols, and max-width:100% on mega/colorgrid/specs/desc/sizegrid.
+
 ## NEXT / OUTSTANDING
 1. **Wire the quote "Send" (Step 3) into Dillon's employee-portal quote tool** so catalog quotes land where his existing `[bt_quick_quote]` submissions go. Currently Send only confirms client-side. Need the submission storage shape (the quote tool is a single btq-prefixed HTML/JS file, posts to boomerts/v1; quote desk). This is the last real feature.
 2. Verify Quick Quote price parity + decide retail-vs-cost input (see pricing note).
