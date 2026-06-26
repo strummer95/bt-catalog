@@ -1,6 +1,6 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.5.4**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.5.5**.
 
-# BT Catalog — Project Handoff (current as of v0.5.4)
+# BT Catalog — Project Handoff (current as of v0.5.5)
 
 ## What this is
 A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink & Thread — family print shop). It ingests the S&S Activewear API into a cache table and renders a BT-branded blank-apparel catalog with a quote flow (browse blanks → pick sizes → decoration → send to quote desk; no checkout). Retail = S&S cost × markup; cost is never shown to customers.
@@ -49,7 +49,7 @@ A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink &
 - `assets/catalog.js` — data-driven storefront in `#btcat-root`. Builds header (My Quote button above search), grid, PDP, 3-step quote drawer.
 
 ## Live status (confirmed working)
-- Plugin active **v0.5.4**, ~5,707 styles cached, full sync running/auto-pricing. Storefront live at **boomerts.com/catalog/** via `[bt_catalog]`.
+- Plugin active **v0.5.5**, ~5,707 styles cached, full sync running/auto-pricing. Storefront live at **boomerts.com/catalog/** via `[bt_catalog]`.
 - Real photos, auto-prices (e.g., Gildan 64000 = $6.95), search/filter/facets/pagination, PDP, swatches, formatted description all working.
 
 ## Feature history & key fixes
@@ -60,6 +60,8 @@ A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink &
 - **Pricing uses the real Quick Quote endpoint (DONE):** Step 2 calls `POST /wp-json/boomerts/v1/price` (same `boomerts/v1` namespace; that endpoint is Dillon's employee-portal "Price Return" snippet) with `garment=custom`, `retail=<blank's catalog price>`, `qty`, and either `locations` (print 1-3) or `embType` (embroidery: text/logo/hard). Response `{perShirt,total,discPct,breaks}`. Embroidery 84+ returns perShirt=null → shows "By quote". Print uses 1/2/3 locations; embroidery uses Names/Logo/Hard-to-handle (matches the formula). Changing qty now changes the price. (Removed the earlier made-up local tiers.)
   - OPEN QUESTION for Dillon to verify: that the catalog's price matches his portal for a known combo, and whether `retail` should send the doubled retail (current) or raw cost.
 - **Featured on default page (DONE, brand-aware):** Admin "Featured" box, one entry per line/comma. Last token = style number, preceding words = brand (e.g., `Gildan 5000`, `Bella Canvas 3001`). Bare numbers collide (5000 = Bayside/Gildan/etc.), so brand prefix disambiguates. Served by DEFAULT server-side when catalog is unfiltered (robust to cached front-end). Admin shows per-line match ("Gildan 5000 → GILDAN · Heavy Cotton") and flags collisions (⚠ N brands use "5000"). Earlier gotcha: the placeholder text was the same as the example numbers, making an empty box look filled — removed.
+
+- **Left filter sidebar (DONE, v0.5.5):** Restored the mock's left rail (Categories, Colors, Brands) alongside the header dropdowns. Both share the same filter state via setFilter/markActive — selecting in one highlights the other; active item gets navy pill. Brands list scrolls (max-height 320px). Sidebar built in loadFacets with the same data-brand/data-cat/data-color attrs so the existing binds cover it. Hidden under 860px (header dropdowns take over). `.btside/.fsec/.fhead/.fitem` in catalog.css.
 
 ## NEXT / OUTSTANDING
 1. **Wire the quote "Send" (Step 3) into Dillon's employee-portal quote tool** so catalog quotes land where his existing `[bt_quick_quote]` submissions go. Currently Send only confirms client-side. Need the submission storage shape (the quote tool is a single btq-prefixed HTML/JS file, posts to boomerts/v1; quote desk). This is the last real feature.
