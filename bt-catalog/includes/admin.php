@@ -46,6 +46,13 @@ function bt_cat_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>Featured list saved.</p></div>';
     }
 
+    // Save popular style list (its own option).
+    if (isset($_POST['bt_cat_save_pop'])) {
+        check_admin_referer('bt_cat_pop');
+        update_option('bt_cat_popular', sanitize_textarea_field(wp_unslash($_POST['popular'])));
+        echo '<div class="notice notice-success is-dismissible"><p>Popular list saved.</p></div>';
+    }
+
     // Save update source (merge — preserves credentials).
     if (isset($_POST['bt_cat_save_upd'])) {
         check_admin_referer('bt_cat_upd');
@@ -209,6 +216,48 @@ function bt_cat_admin_page() {
                 <p class="description" style="color:#b32d2e">No featured styles saved yet — the catalog is showing the full A&ndash;Z list. Type style numbers above (grey text is only an example) and click Save featured.</p>
             <?php endif; ?>
             <p><button type="submit" name="bt_cat_save_feat" value="1" class="button button-primary">Save featured</button></p>
+        </form>
+
+        <hr style="margin:28px 0">
+        <h2>Popular styles</h2>
+        <p class="description">These float to the <strong>top of every list</strong> (search and filtered results too) and show a <strong>POPULAR</strong> pill on the card. Same syntax as featured &mdash; one per line or comma-separated, brand first for shared numbers (<code>Gildan 5000</code>).</p>
+        <?php
+            $pop_raw  = (string) get_option('bt_cat_popular', '');
+            $pop_list = function_exists('bt_cat_popular') ? bt_cat_popular() : array();
+            $pop_rows = array();
+            if (!empty($pop_list)) {
+                global $wpdb; $t = bt_cat_table();
+                foreach ($pop_list as $f) {
+                    if ($f['brand'] !== '') {
+                        $row = $wpdb->get_row($wpdb->prepare(
+                            "SELECT brand, style_no, name FROM $t WHERE style_no=%s AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','')=%s AND detail_done=1 AND active=1 LIMIT 1",
+                            $f['style'], bt_cat_brand_norm($f['brand'])), ARRAY_A);
+                    } else {
+                        $row = $wpdb->get_row($wpdb->prepare(
+                            "SELECT brand, style_no, name FROM $t WHERE style_no=%s AND detail_done=1 AND active=1 LIMIT 1", $f['style']), ARRAY_A);
+                    }
+                    $pop_rows[] = array('entry' => $f, 'row' => $row);
+                }
+            }
+        ?>
+        <form method="post">
+            <?php wp_nonce_field('bt_cat_pop'); ?>
+            <textarea name="popular" rows="5" class="large-text code" placeholder="Gildan 5000, Gildan 18000, Bella Canvas 3001"><?php echo esc_textarea($pop_raw); ?></textarea>
+            <?php if (!empty($pop_list)): ?>
+                <ul style="margin:8px 0 0;font-size:13px">
+                    <?php foreach ($pop_rows as $pr): $f = $pr['entry']; $row = $pr['row']; ?>
+                        <li style="padding:2px 0">
+                            <code><?php echo esc_html(($f['brand'] ? $f['brand'].' ' : '') . $f['style']); ?></code> &rarr;
+                            <?php if ($row): ?>
+                                <strong><?php echo esc_html($row['brand']); ?></strong> &middot; <?php echo esc_html($row['name'] ?: $row['style_no']); ?>
+                            <?php else: ?>
+                                <span style="color:#b32d2e">not found &mdash; may not be imported yet, or the style number/brand differs.</span>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <p><button type="submit" name="bt_cat_save_pop" value="1" class="button button-primary">Save popular</button></p>
         </form>
 
         <hr style="margin:28px 0">

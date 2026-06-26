@@ -48,6 +48,27 @@ function bt_cat_brand_norm($b) {
 }
 
 /**
+ * "Popular" styles: float to the top of EVERY list and get a POPULAR pill.
+ * Same brand-aware syntax as featured (one per line/comma; "Gildan 5000").
+ * Returns array of ['style'=>..., 'brand'=>...] in configured order.
+ */
+function bt_cat_popular() {
+    $raw = (string) get_option('bt_cat_popular', '');
+    if (trim($raw) === '') return array();
+    $lines = preg_split('/[\r\n,]+/', $raw);
+    $out = array();
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        $parts = preg_split('/\s+/', $line);
+        if (count($parts) > 1) { $style = array_pop($parts); $brand = trim(implode(' ', $parts)); }
+        else { $style = $parts[0]; $brand = ''; }
+        $out[] = array('style' => $style, 'brand' => $brand);
+    }
+    return $out;
+}
+
+/**
  * Resolve the featured list to actual catalog rows, in order, brand-aware.
  * Returns array of DB row arrays (id, brand, style_no, name, category, colors, retail, retail_override).
  */
@@ -135,6 +156,10 @@ function bt_cat_install() {
     ) $charset;";
 
     dbDelta($sql);
+
+    // Seed default "popular" styles once (overridable in Settings). add_option
+    // won't overwrite an existing value, so clearing the field later sticks.
+    add_option('bt_cat_popular', "Gildan 5000\nGildan 18000\nGildan 18500\nBella Canvas 3001");
 }
 
 /**

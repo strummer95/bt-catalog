@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.5.7",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.7.zip",
+  "version": "0.5.8",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.5.8.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "PDP is far more compact: description bullets and spec rows use a smaller font with tight line spacing, and headings/labels were trimmed, roughly halving the vertical height. Header dropdown menus shifted right to line up with the product grid instead of the filter sidebar."
+  "changelog": "New 'Popular styles' setting (seeded with Gildan 5000/18000/18500 and Bella+Canvas 3001): these float to the top of every list and show a POPULAR pill on their card. Brand-aware, editable in Settings."
 }

@@ -108,9 +108,29 @@ function bt_cat_rest_list($req) {
 
     $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $t WHERE $wsql", $args));
 
+    // Popular styles float to the top of any list (brand-aware), in configured order.
+    $popCase = '';
+    $popArgs = array();
+    $popList = bt_cat_popular();
+    if (!empty($popList)) {
+        $whens = array();
+        foreach ($popList as $i => $p) {
+            $rank = (int) $i;
+            if ($p['brand'] !== '') {
+                $whens[] = "WHEN (style_no = %s AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','') = %s) THEN $rank";
+                $popArgs[] = $p['style'];
+                $popArgs[] = bt_cat_brand_norm($p['brand']);
+            } else {
+                $whens[] = "WHEN (style_no = %s) THEN $rank";
+                $popArgs[] = $p['style'];
+            }
+        }
+        $popCase = 'CASE ' . implode(' ', $whens) . ' ELSE 9999 END ASC, ';
+    }
+
     $sql  = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
-             FROM $t WHERE $wsql ORDER BY brand ASC, style_no ASC LIMIT %d OFFSET %d";
-    $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, array($per, $off))), ARRAY_A);
+             FROM $t WHERE $wsql ORDER BY $popCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
+    $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $popArgs, array($per, $off))), ARRAY_A);
 
     return array(
         'items' => bt_cat_rest_rows_to_items($rows),
@@ -123,20 +143,30 @@ function bt_cat_rest_list($req) {
 
 /** Map DB rows to customer-safe list items (cost never leaves the server). */
 function bt_cat_rest_rows_to_items($rows) {
+    $popList = bt_cat_popular();
     $items = array();
     foreach ((array) $rows as $r) {
         $cols  = json_decode($r['colors'], true);
         $cols  = is_array($cols) ? $cols : array();
         $thumb = !empty($cols[0]['img']) ? $cols[0]['img'] : '';
+        $pop = false;
+        if (!empty($popList)) {
+            $nb = bt_cat_brand_norm($r['brand']);
+            foreach ($popList as $p) {
+                if ((string) $p['style'] === (string) $r['style_no']
+                    && ($p['brand'] === '' || bt_cat_brand_norm($p['brand']) === $nb)) { $pop = true; break; }
+            }
+        }
         $items[] = array(
-            'id'     => (int) $r['id'],
-            'brand'  => $r['brand'],
-            'style'  => $r['style_no'],
-            'name'   => $r['name'],
-            'cat'    => $r['category'],
-            'price'  => bt_cat_price_row($r),
-            'colors' => count($cols),
-            'thumb'  => $thumb,
+            'id'      => (int) $r['id'],
+            'brand'   => $r['brand'],
+            'style'   => $r['style_no'],
+            'name'    => $r['name'],
+            'cat'     => $r['category'],
+            'price'   => bt_cat_price_row($r),
+            'colors'  => count($cols),
+            'thumb'   => $thumb,
+            'popular' => $pop,
         );
     }
     return $items;

@@ -165,7 +165,7 @@
         var img = p.thumb ? '<img src="'+esc(p.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">'
                           : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ccc;font-size:13px">No image</div>';
         return '<div class="pcard" data-id="'+p.id+'">' +
-          '<div class="pimg">'+img+'</div>' +
+          '<div class="pimg">'+(p.popular ? '<span class="poptag">Popular</span>' : '')+img+'</div>' +
           '<div class="pbody"><div class="pbrand">'+esc(p.brand)+'</div><div class="pname">'+esc(p.name||p.style)+'</div>' +
           '<div class="pstyle">Style '+esc(p.style)+'</div>' +
           '<div class="row"><div class="price">'+money(p.price)+' <small>/ea</small></div>' +

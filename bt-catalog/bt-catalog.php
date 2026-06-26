@@ -9,7 +9,7 @@ Author: Duck and Rabbit Co.
 
 if (!defined('ABSPATH')) exit;
 
-define('BT_CAT_VERSION', '0.5.7');
+define('BT_CAT_VERSION', '0.5.8');
 define('BT_CAT_DIR', plugin_dir_path(__FILE__));
 define('BT_CAT_URL', plugin_dir_url(__FILE__));
 define('BT_CAT_FILE', __FILE__);
