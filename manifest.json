@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.6.8",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.8.zip",
+  "version": "0.6.9",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.6.9.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Catalog now defaults product images to navy: exact Navy first, then any color with 'navy' in the name, then a dark blue, then gray, otherwise the first available color. Applies to grid thumbnails and the color pre-selected on the product page. No re-sync needed."
+  "changelog": "Hero headline changed to 'Browse Products. Get a quote.'"
 }
