@@ -208,6 +208,7 @@
           '<div class="sizegrid" id="btSizes"></div>' +
           '<button class="addbtn" id="btAdd" style="margin-top:12px">Add to Quote</button>' +
           '<div class="lab">Color <span id="btColorName" style="color:#8a8aa0;text-transform:none;letter-spacing:0"></span></div>' +
+          '<div class="colorprev" id="btColorPrev"></div>' +
           '<div class="colorgrid" id="btColors2"></div>' +
         '</div></div></div>';
       pdp.className = 'pdp open';
@@ -239,20 +240,18 @@
       currentColor = s.getAttribute('data-c');
       box.querySelectorAll('.copt').forEach(function(x){ x.classList.remove('sel'); });
       s.classList.add('sel'); setColorName(); swapImage();
-      if (window.innerWidth <= 860) {
-        var pdpEl = document.getElementById('btPdp');
-        if (pdpEl) { try { pdpEl.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ pdpEl.scrollTop = 0; } }
-      }
     }); });
     swapImage();
   }
   function setColorName(){ var el=document.getElementById('btColorName'); if(el) el.textContent = currentColor ? ('\u2014 '+currentColor) : ''; }
   function swapImage(){
     var c = current.colors.filter(function(x){ return x.name===currentColor; })[0] || current.colors[0];
+    var has = c && c.img;
     var img = document.getElementById('btPdpImg');
-    if (!img) return;
-    img.innerHTML = (c && c.img) ? '<img src="'+esc(c.img)+'" onerror="this.parentNode.innerHTML=\'<div style=&quot;color:#ccc&quot;>No image</div>\'">'
+    if (img) img.innerHTML = has ? '<img src="'+esc(c.img)+'" onerror="this.parentNode.innerHTML=\'<div style=&quot;color:#ccc&quot;>No image</div>\'">'
                                  : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ccc">No image</div>';
+    var pv = document.getElementById('btColorPrev');
+    if (pv) pv.innerHTML = has ? '<img src="'+esc(c.img)+'">' : '';
   }
   function renderSizes(p){
     var sizes = p.sizes && p.sizes.length ? p.sizes : ['S','M','L','XL','2XL'];
