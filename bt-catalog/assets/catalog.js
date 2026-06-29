@@ -192,8 +192,8 @@
     if (n==='navy') return 0;
     if (n.indexOf('navy')!==-1) return 1;
     var rgb=hexRgb(hex), lum=rgb?((rgb[0]+rgb[1]+rgb[2])/3):null;
-    if (rgb && lum<120 && (n.indexOf('blue')!==-1 || (rgb[2]>rgb[0]+15 && rgb[2]>rgb[1]+15))) return 2;
-    if (/gray|grey|charcoal|graphite/.test(n)) return 3;
+    if ((rgb && lum<120 && (n.indexOf('blue')!==-1 || (rgb[2]>rgb[0]+15 && rgb[2]>rgb[1]+15))) || /midnight|indigo|royal|cobalt|marine/.test(n)) return 2;
+    if (/gray|grey|charcoal|graphite|slate|oxford/.test(n)) return 3;
     if (rgb){ var mx=Math.max.apply(null,rgb), mn=Math.min.apply(null,rgb); if ((mx-mn)<=30 && lum>=50 && lum<=215) return 3; }
     return 99;
   }

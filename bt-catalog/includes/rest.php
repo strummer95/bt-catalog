@@ -256,10 +256,11 @@ function bt_cat_color_rank($name, $hex) {
     if (strpos($n, 'navy') !== false) return 1;
     $rgb = bt_cat_hex_rgb($hex);
     $lum = $rgb ? (($rgb[0] + $rgb[1] + $rgb[2]) / 3) : null;
-    // a dark blue
-    if ($rgb && $lum < 120 && (strpos($n, 'blue') !== false || ($rgb[2] > $rgb[0] + 15 && $rgb[2] > $rgb[1] + 15))) return 2;
-    // gray (by name or near-neutral hex that isn't black/white)
-    if (preg_match('/gray|grey|charcoal|graphite/', $n)) return 3;
+    // a dark blue — by hex when available (S&S), else by name (SanMar/EG-PRO have no hex)
+    if (($rgb && $lum < 120 && (strpos($n, 'blue') !== false || ($rgb[2] > $rgb[0] + 15 && $rgb[2] > $rgb[1] + 15)))
+        || preg_match('/midnight|indigo|royal|cobalt|marine/', $n)) return 2;
+    // gray (by name — works for all suppliers — or near-neutral hex that isn't black/white)
+    if (preg_match('/gray|grey|charcoal|graphite|slate|oxford/', $n)) return 3;
     if ($rgb) { $mx = max($rgb); $mn = min($rgb); if (($mx - $mn) <= 30 && $lum >= 50 && $lum <= 215) return 3; }
     return 99;
 }

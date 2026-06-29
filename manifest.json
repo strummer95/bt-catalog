@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.10.2",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.2.zip",
+  "version": "0.10.3",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.3.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "EG-PRO product details are now parsed cleanly from their feed: Fabric and Weight show as proper spec rows, the feature list becomes the product description, and the supplier MSRP/sign-in line, embedded widget junk, and links back to egpro.com are stripped out. Re-run EG-PRO import/refresh to apply."
+  "changelog": "Navy-first default colorway now works for SanMar and EG-PRO too. Since those suppliers carry no hex (only S&S does), the rule now also recognizes dark-blue and gray by color NAME (navy, royal, cobalt, indigo, midnight, marine; charcoal/graphite/slate/oxford), so a style with no literal 'navy' still defaults to a dark/neutral color like it does for S&S."
 }
