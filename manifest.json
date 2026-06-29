@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.9.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.9.1.zip",
+  "version": "0.10.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Search now ranks by relevance: an exact style-number match (e.g. searching 173 -> Richardson 173) comes first, then styles starting with the term, then name matches."
+  "changelog": "Added EG-PRO as a third supplier. New EG-PRO admin page pulls their house-brand catalog straight from Shopify's public products.json feed (no credentials needed), parses style number/name/category/colors/sizes/per-color photos, and auto-prices each style (cost x 2, rounded up to .95). Test-feed + import/refresh + clear controls; EG-PRO is exclusive so nothing dedups against S&S/SanMar."
 }
