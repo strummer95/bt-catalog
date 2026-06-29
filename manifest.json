@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.10.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.0.zip",
+  "version": "0.10.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Added EG-PRO as a third supplier. New EG-PRO admin page pulls their house-brand catalog straight from Shopify's public products.json feed (no credentials needed), parses style number/name/category/colors/sizes/per-color photos, and auto-prices each style (cost x 2, rounded up to .95). Test-feed + import/refresh + clear controls; EG-PRO is exclusive so nothing dedups against S&S/SanMar."
+  "changelog": "Style numbers across the catalog now carry a short supplier tag — SS (S&S), SM (SanMar), EG (EG-PRO) — e.g. 'SM Style 1730'. Shows on product cards, the product page, and quote lines."
 }

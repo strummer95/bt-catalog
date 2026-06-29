@@ -138,7 +138,7 @@ function bt_cat_rest_list($req) {
         $relArgs[] = '%' . $wpdb->esc_like($s) . '%';
     }
 
-    $sql  = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
+    $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
              FROM $t WHERE $wsql ORDER BY $relCase $popCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
     $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $relArgs, $popArgs, array($per, $off))), ARRAY_A);
 
@@ -170,15 +170,16 @@ function bt_cat_rest_rows_to_items($rows) {
             }
         }
         $items[] = array(
-            'id'      => (int) $r['id'],
-            'brand'   => $r['brand'],
-            'style'   => $r['style_no'],
-            'name'    => $r['name'],
-            'cat'     => $r['category'],
-            'price'   => bt_cat_price_row($r),
-            'colors'  => count($cols),
-            'thumb'   => $thumb,
-            'popular' => $pop,
+            'id'       => (int) $r['id'],
+            'supplier' => $r['supplier'],
+            'brand'    => $r['brand'],
+            'style'    => $r['style_no'],
+            'name'     => $r['name'],
+            'cat'      => $r['category'],
+            'price'    => bt_cat_price_row($r),
+            'colors'   => count($cols),
+            'thumb'    => $thumb,
+            'popular'  => $pop,
         );
     }
     return $items;
@@ -189,7 +190,7 @@ function bt_cat_rest_item($req) {
     $t  = bt_cat_table();
     $id = (int) $req->get_param('id');
     $r  = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, brand, style_no, name, category, description, specs, colors, sizes, retail, retail_override
+        "SELECT id, supplier, brand, style_no, name, category, description, specs, colors, sizes, retail, retail_override
          FROM $t WHERE id=%d AND detail_done=1", $id), ARRAY_A);
     if (!$r) return new WP_REST_Response(array('error' => 'not found'), 404);
 
@@ -198,6 +199,7 @@ function bt_cat_rest_item($req) {
 
     return array(
         'id'     => (int) $r['id'],
+        'supplier' => $r['supplier'],
         'brand'  => $r['brand'],
         'style'  => $r['style_no'],
         'name'   => $r['name'],

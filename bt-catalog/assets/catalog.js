@@ -43,6 +43,8 @@
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   function money(n){ return '$' + (Math.round(n*100)/100).toFixed(2); }
+  // Short supplier tag shown before the style number (internal-friendly hint).
+  function supLabel(s){ return s === 'ss' ? 'SS ' : s === 'sanmar' ? 'SM ' : s === 'egpro' ? 'EG ' : ''; }
   function api(path){ return fetch(REST + path, { credentials:'same-origin' }).then(function(r){ return r.json(); }); }
 
   /* ---------- shell ---------- */
@@ -166,7 +168,7 @@
         return '<div class="pcard" data-id="'+p.id+'">' +
           '<div class="pimg">'+(p.popular ? '<span class="poptag">Popular</span>' : '')+img+'</div>' +
           '<div class="pbody"><div class="pbrand">'+esc(p.brand)+'</div><div class="pname">'+esc(p.name||p.style)+'</div>' +
-          '<div class="pstyle">Style '+esc(p.style)+'</div>' +
+          '<div class="pstyle">'+supLabel(p.supplier)+'Style '+esc(p.style)+'</div>' +
           '<div class="row"><div class="price">'+money(p.price)+' <small>/ea</small></div>' +
           '<div class="colorcount">'+p.colors+' colors available</div></div></div></div>';
       }).join('');
@@ -218,7 +220,7 @@
         '<div class="wrap"><span class="back">\u2190 Back to catalog</span>' +
         '<div class="pdp-grid"><div class="pdp-img" id="btPdpImg"></div><div>' +
           '<div class="pbrand">'+esc(p.brand)+'</div><h1>'+esc(p.name||p.style)+'</h1>' +
-          '<div class="pstyle">Style '+esc(p.style)+'</div>' +
+          '<div class="pstyle">'+supLabel(p.supplier)+'Style '+esc(p.style)+'</div>' +
           '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>' +
           '<div class="priceNote">Per-piece retail before decoration. Final price comes back on your quote.</div>' +
           '<div class="desc">'+(p.desc||'')+'</div>' +
@@ -284,7 +286,7 @@
     var qty = Object.keys(sizes).reduce(function(a,k){ return a+sizes[k]; }, 0);
     if (qty === 0){ alert('Add at least one size quantity.'); return; }
     var c = current.colors.filter(function(x){ return x.name===currentColor; })[0] || {};
-    quote.push({ id:current.id, brand:current.brand, name:current.name||current.style, style:current.style,
+    quote.push({ id:current.id, supplier:current.supplier, brand:current.brand, name:current.name||current.style, style:current.style,
       color:currentColor||'', img:c.img||'', price:current.price, sizes:sizes, qty:qty });
     updateBadge(); closePDP(); dStep=1; openDrawer();
   }
@@ -344,7 +346,7 @@
       }).join('');
       var th = l.img ? '<img src="'+esc(l.img)+'" onerror="this.style.display=\'none\'">' : '';
       return '<div class="qline"><div class="th">'+th+'</div><div class="meta">' +
-        '<div class="n">'+esc(l.brand)+' '+esc(l.name)+'</div><div class="s">Style '+esc(l.style)+' \u00b7 '+esc(l.color)+'</div>' +
+        '<div class="n">'+esc(l.brand)+' '+esc(l.name)+'</div><div class="s">'+supLabel(l.supplier)+'Style '+esc(l.style)+' \u00b7 '+esc(l.color)+'</div>' +
         '<div class="qsizes">'+inputs+'</div><div class="qsum" id="qsum'+idx+'">'+l.qty+' pcs \u00b7 '+money(l.price)+'/ea</div>' +
         '</div><button class="qrm" data-rm="'+idx+'">\u2715</button></div>';
     }).join('');
