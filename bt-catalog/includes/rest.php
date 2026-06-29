@@ -128,9 +128,19 @@ function bt_cat_rest_list($req) {
         $popCase = 'CASE ' . implode(' ', $whens) . ' ELSE 9999 END ASC, ';
     }
 
+    // Search relevance: exact style number first, then style prefix, then name match.
+    $relCase = '';
+    $relArgs = array();
+    if ($s !== '') {
+        $relCase = "CASE WHEN style_no = %s THEN 0 WHEN style_no LIKE %s THEN 1 WHEN name LIKE %s THEN 2 ELSE 3 END ASC, ";
+        $relArgs[] = $s;
+        $relArgs[] = $wpdb->esc_like($s) . '%';
+        $relArgs[] = '%' . $wpdb->esc_like($s) . '%';
+    }
+
     $sql  = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
-             FROM $t WHERE $wsql ORDER BY $popCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
-    $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $popArgs, array($per, $off))), ARRAY_A);
+             FROM $t WHERE $wsql ORDER BY $relCase $popCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
+    $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $relArgs, $popArgs, array($per, $off))), ARRAY_A);
 
     return array(
         'items' => bt_cat_rest_rows_to_items($rows),
