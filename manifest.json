@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.7.6",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.6.zip",
+  "version": "0.7.7",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.7.7.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar importer: all three services confirmed working. Added Discover styles, an editable skip-brands list (the S&S overlap), and a background import (~25/min) that pulls SanMar's exclusive lines — product, front images, your cost — into the catalog alongside S&S. Images now prefer the front view."
+  "changelog": "Added a 'Preview pricing' button to capture SanMar's real price-break structure, so cost is parsed as the piece price (and sale) instead of the lowest quantity-break number. Hold off on the SanMar import until pricing is corrected."
 }

@@ -263,6 +263,20 @@ function bt_cat_sanmar_pricing($style) {
     return array('ok' => true, 'cost' => $cost, 'request' => $r['request']);
 }
 
+/** Dump the raw getConfigurationAndPricing structure (trimmed) to design the price parser. */
+function bt_cat_sanmar_preview_pricing($style = 'PC61') {
+    $cr = bt_cat_sanmar_creds();
+    $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRICE, 'getConfigurationAndPricing', array(
+        'wsVersion' => '1.0.0', 'id' => $cr['id'], 'password' => $cr['pw'],
+        'productId' => $style, 'currency' => 'USD', 'fobId' => '1',
+        'priceType' => 'Customer', 'localizationCountry' => 'US', 'localizationLanguage' => 'en',
+        'configurationType' => 'Blank',
+    ));
+    if (!$r['ok']) return array('ok' => false, 'message' => $r['error'], 'json' => "REQUEST:\n" . ($r['request'] ?? ''));
+    $data = bt_cat_sanmar_trim($r['data'], 3);
+    return array('ok' => true, 'message' => 'Pricing structure for "' . $style . '" (arrays trimmed to 3):', 'json' => wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+}
+
 /** Assemble a full catalog row for one SanMar style (no DB write). */
 function bt_cat_sanmar_assemble($style) {
     $prod  = bt_cat_sanmar_product($style);
@@ -333,6 +347,12 @@ function bt_cat_sanmar_page() {
     if (isset($_POST['bt_cat_full_sanmar'])) {
         check_admin_referer('bt_cat_sanmar');
         $full = bt_cat_sanmar_assemble(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
+    }
+
+    $pricejson = null;
+    if (isset($_POST['bt_cat_pricejson_sanmar'])) {
+        check_admin_referer('bt_cat_sanmar');
+        $pricejson = bt_cat_sanmar_preview_pricing(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
     }
 
     $discover = null;
@@ -414,8 +434,19 @@ function bt_cat_sanmar_page() {
                 &nbsp;<button type="submit" name="bt_cat_test_sanmar" value="1" class="button">Test connection</button>
                 &nbsp;<button type="submit" name="bt_cat_preview_sanmar" value="1" class="button">Preview structure</button>
                 &nbsp;<button type="submit" name="bt_cat_full_sanmar" value="1" class="button button-secondary">Preview full import</button>
+                &nbsp;<button type="submit" name="bt_cat_pricejson_sanmar" value="1" class="button">Preview pricing</button>
             </p>
         </form>
+
+        <?php if ($pricejson !== null): ?>
+            <div class="notice notice-<?php echo !empty($pricejson['ok']) ? 'info' : 'error'; ?>" style="max-width:900px">
+                <p><strong><?php echo esc_html($pricejson['message']); ?></strong></p>
+                <?php if (!empty($pricejson['json'])): ?>
+                    <textarea readonly rows="20" class="large-text code" style="font-size:11px"><?php echo esc_textarea($pricejson['json']); ?></textarea>
+                    <p class="description">Paste this to me — it shows how SanMar structures the price breaks (piece price vs quantity discounts vs sale) so I parse your real cost correctly.</p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($full !== null): ?>
             <div class="notice notice-<?php echo !empty($full['ok']) ? 'success' : 'error'; ?>" style="max-width:900px">
