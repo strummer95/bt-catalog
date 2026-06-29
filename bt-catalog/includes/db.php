@@ -144,6 +144,7 @@ function bt_cat_install() {
         retail_override DECIMAL(10,2) NULL DEFAULT NULL,
         detail_done TINYINT(1) NOT NULL DEFAULT 0,
         tier VARCHAR(20) NOT NULL DEFAULT '',
+        perf TINYINT(1) NOT NULL DEFAULT 0,
         active TINYINT(1) NOT NULL DEFAULT 1,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
@@ -175,11 +176,14 @@ function bt_cat_upsert($row) {
         'brand' => '', 'name' => '', 'category' => '', 'description' => '',
         'specs' => '', 'colors' => '', 'sizes' => '',
         'cost' => 0, 'sale_cost' => 0, 'retail' => 0, 'detail_done' => 1,
-        'tier' => '', 'active' => 1,
+        'tier' => '', 'perf' => 0, 'active' => 1,
     );
     $row = array_merge($defaults, array_intersect_key($row, $defaults));
     if ($row['tier'] === '' && function_exists('bt_cat_tier_for')) {
         $row['tier'] = bt_cat_tier_for($row['supplier'], $row['style_no']);
+    }
+    if (function_exists('bt_cat_is_performance')) {
+        $row['perf'] = bt_cat_is_performance($row) ? 1 : 0;
     }
     $row['updated_at'] = current_time('mysql');
 

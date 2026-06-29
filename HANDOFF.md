@@ -1,6 +1,6 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.12.1**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.13.0**.
 
-# BT Catalog — Project Handoff (current as of v0.12.1)
+# BT Catalog — Project Handoff (current as of v0.13.0)
 
 ## v0.12.0 — Quality filter (Good/Better/Best)
 - New `includes/tiers.php`: static style#→tier map extracted from the 7 SanMar Navigator guides (Tee, Polo, Sweatshirt, Outerwear, Wovens, Headwear, Bags). 647 styles (235 good / 208 better / 204 best). Edit the $good/$better/$best lists + bump version to change tiers.
@@ -14,6 +14,11 @@
 - **Brand mega-menu** now flows column-major (down col 1, then col 2 …) via CSS multicolumn (`.megabrands{column-count}`) instead of row-major grid — easier to scan alphabetically.
 - **Sidebar filter groups collapsible**, default **collapsed**. `.fhead` toggles `.fsec.collapsed` (caret via `::after`); bound in `bindMenus()`.
 - **Decoration step (step 2) compacted**: smaller Printed/Embroidered buttons (`.methsel button`), tighter `.secLab`/`.optcard`/`.declabel`. The **size/quantity editor now also lives on step 2** (reused `.qline`/`.qsizes`); typing debounces (300ms) a `renderEst()` refresh so the per-shirt estimate updates live. `renderEst()` extracted from the old inline postPrice block.
+
+## v0.13.0 — Performance filter (cross-cutting attribute, not a category)
+- New **perf** column (TINYINT, added via dbDelta on the version-gated init). Detected from **fabric/specs not name** by `bt_cat_is_performance($row)` in tiers.php (signals: moisture/wicking, dri-fit, dri-power, posicharge, sport-wick, racermesh, dry zone, performance, micropique, upf, coolmax, islandzone, fastdry, therma-fit, tech fleece, flat back mesh). Catches EG-PRO E152 ("Basic Training" poly interlock) and C2 Sport 5100 despite plain names.
+- Set on every import in `bt_cat_upsert()` (recomputed each time); backfilled by `bt_cat_apply_perf()`, which runs alongside `bt_cat_apply_tiers()` on the once-per-version admin_init hook.
+- REST: `perf=1` param (literal `perf = 1` WHERE); facets returns `perf` (count). Storefront: a **Features** group at the bottom of the sidebar with a single **Performance** toggle (mirrors the filter plumbing; friendly chip label). Intentionally NOT a category — stacks on top of any category so performance tees still live under T-Shirts. Note: Nike performance items DO show here (Nike is only excluded from tiers).
 
 ## What this is
 A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink & Thread — family print shop). It ingests multiple suppliers (S&S Activewear, SanMar, EG-PRO) into one cache table and renders a BT-branded blank-apparel catalog with a quote flow (browse blanks → pick sizes → decoration → send to quote desk; no checkout). Retail = S&S cost × markup; cost is never shown to customers.

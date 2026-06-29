@@ -212,6 +212,50 @@ function bt_cat_apply_tiers() {
     return $counts;
 }
 
+/**
+ * Performance attribute (cross-cutting, not a category). Detected from the
+ * garment's fabric/specs rather than its name — so a 100% poly moisture-wicking
+ * tee named "Basic Training" (EG-PRO E152) or the C2 Sport 5100 still register.
+ * Recomputed on every import (see bt_cat_upsert) and backfilled below.
+ */
+function bt_cat_is_performance($row) {
+    $hay = strtolower(
+        (isset($row['category'])    ? $row['category']    : '') . ' ' .
+        (isset($row['name'])        ? $row['name']        : '') . ' ' .
+        (isset($row['specs'])       ? $row['specs']       : '') . ' ' .
+        (isset($row['description']) ? $row['description'] : '')
+    );
+    static $sig = array(
+        'moisture', 'wicking', 'dri-fit', 'dri fit', 'drifit', 'dri-power', 'dri power',
+        'posicharge', 'posi-charge', 'sport-wick', 'sport wick', 'sportwick',
+        'racermesh', 'racer mesh', 'dry zone', 'dryzone', 'performance',
+        'micropique', 'micro pique', 'upf', 'uv protection', 'sun protection',
+        'coolmax', 'islandzone', 'fastdry', 'fast dry', 'therma-fit', 'therma fit',
+        'tech fleece', 'flat back mesh',
+    );
+    foreach ($sig as $s) { if (strpos($hay, $s) !== false) return true; }
+    return false;
+}
+
+/** Backfill the perf flag on existing rows from the detector. Safe to repeat. */
+function bt_cat_apply_perf() {
+    global $wpdb;
+    $t = bt_cat_table();
+    if (!$wpdb->get_var("SHOW COLUMNS FROM $t LIKE 'perf'")) return 0; // column not added yet
+    $rows = $wpdb->get_results("SELECT id, category, name, specs, description FROM $t", ARRAY_A);
+    if (!is_array($rows)) return 0;
+    $on = array();
+    foreach ($rows as $r) { if (bt_cat_is_performance($r)) $on[] = (int) $r['id']; }
+    $wpdb->query("UPDATE $t SET perf=0");
+    foreach (array_chunk($on, 500) as $chunk) {
+        if (!$chunk) continue;
+        $in = implode(',', array_map('intval', $chunk)); // ints only -> safe to inline
+        $wpdb->query("UPDATE $t SET perf=1 WHERE id IN ($in)");
+    }
+    if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
+    return count($on);
+}
+
 /* Re-apply tiers once per plugin version when an admin loads wp-admin. Keeps
    existing rows in sync after a map edit (which always ships with a version
    bump) without needing a manual button or a re-import. */
@@ -221,5 +265,6 @@ add_action('admin_init', function () {
     $t = bt_cat_table();
     if ($wpdb->get_var("SHOW TABLES LIKE '$t'") !== $t) return; // table not ready yet
     bt_cat_apply_tiers();
+    bt_cat_apply_perf();
     update_option('bt_cat_tier_stamp', BT_CAT_VERSION);
 });

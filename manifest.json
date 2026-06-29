@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.12.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.12.1.zip",
+  "version": "0.13.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.13.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Storefront polish: brand menu reads top-to-bottom by column; sidebar filter groups now collapse/expand (collapsed by default); the Decoration step is more compact and now shows the size/quantity editor right on the page with a live-updating price estimate."
+  "changelog": "New Performance filter under a Features group in the sidebar. It's an attribute, not a category, so it stacks on top of T-Shirts/Polos/etc. Items are flagged by fabric (moisture-wicking, Dri-FIT, PosiCharge, Sport-Wick, 100% poly performance, UPF), so performance styles with plain names like EG-PRO E152 and C2 Sport 5100 are caught. Tags on import and backfills existing items automatically on update."
 }

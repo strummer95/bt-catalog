@@ -52,13 +52,14 @@ function bt_cat_rest_list($req) {
     $fit   = sanitize_text_field((string) $req->get_param('fit'));
     $color = sanitize_text_field((string) $req->get_param('color'));
     $quality = sanitize_text_field((string) $req->get_param('quality'));
+    $perf  = sanitize_text_field((string) $req->get_param('perf'));
     $page  = max(1, (int) $req->get_param('page'));
     $per   = min(48, max(1, (int) ($req->get_param('per') ?: 24)));
     $off   = ($page - 1) * $per;
 
     // Featured: default page (no search/filter) leads with the configured styles,
     // brand-aware so "Gildan 5000" doesn't collide with another brand's 5000.
-    if ($s === '' && $brand === '' && $cat === '' && $color === '' && $fit === '' && $quality === '') {
+    if ($s === '' && $brand === '' && $cat === '' && $color === '' && $fit === '' && $quality === '' && $perf === '') {
         $resolved = bt_cat_featured_resolve();
         if (!empty($resolved)) {
             $total    = count($resolved);
@@ -130,6 +131,7 @@ function bt_cat_rest_list($req) {
         $q = bt_cat_quality_key($quality);
         if ($q !== '') { $where[] = "tier = %s"; $args[] = $q; }
     }
+    if ($perf !== '' && $perf !== '0') { $where[] = "perf = 1"; }
 
     $wsql = implode(' AND ', $where);
 
@@ -302,7 +304,9 @@ function bt_cat_rest_facets() {
         if (!empty($tierHas[bt_cat_quality_key($label)])) $quals[] = $label;
     }
 
-    $out = array('brands' => $brands, 'categories' => $cats, 'fits' => $fits, 'qualities' => $quals);
+    $perfN = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t WHERE detail_done=1 AND active=1 AND perf=1");
+
+    $out = array('brands' => $brands, 'categories' => $cats, 'fits' => $fits, 'qualities' => $quals, 'perf' => $perfN);
     set_transient('bt_cat_facets_v2', $out, 10 * MINUTE_IN_SECONDS);
     return $out;
 }
