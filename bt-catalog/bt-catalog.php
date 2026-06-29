@@ -9,12 +9,13 @@ Author: Duck and Rabbit Co.
 
 if (!defined('ABSPATH')) exit;
 
-define('BT_CAT_VERSION', '0.11.3');
+define('BT_CAT_VERSION', '0.12.0');
 define('BT_CAT_DIR', plugin_dir_path(__FILE__));
 define('BT_CAT_URL', plugin_dir_url(__FILE__));
 define('BT_CAT_FILE', __FILE__);
 
 require_once BT_CAT_DIR . 'includes/db.php';
+require_once BT_CAT_DIR . 'includes/tiers.php';
 require_once BT_CAT_DIR . 'includes/ingest.php';
 require_once BT_CAT_DIR . 'includes/sync.php';
 require_once BT_CAT_DIR . 'includes/admin.php';

@@ -1,6 +1,14 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.11.3**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.12.0**.
 
-# BT Catalog — Project Handoff (current as of v0.11.3)
+# BT Catalog — Project Handoff (current as of v0.12.0)
+
+## v0.12.0 — Quality filter (Good/Better/Best)
+- New `includes/tiers.php`: static style#→tier map extracted from the 7 SanMar Navigator guides (Tee, Polo, Sweatshirt, Outerwear, Wovens, Headwear, Bags). 647 styles (235 good / 208 better / 204 best). Edit the $good/$better/$best lists + bump version to change tiers.
+- Matching is by style number across ALL suppliers (normalized: uppercase, alphanumerics only). EG-PRO is always **best** (code rule, not in map). **Nike is intentionally excluded** entirely.
+- Tees mapped by guide page: Basics=good, Better Basics=better, Price Point Premium=better, Premium=best, Performance=its own rows.
+- `bt_cat_tier_for()` runs inside `bt_cat_upsert()` so every import auto-tags. `bt_cat_apply_tiers()` backfills existing rows; auto-runs once per BT_CAT_VERSION on admin_init (option `bt_cat_tier_stamp`).
+- REST: `quality` param on /catalog (bound `tier = %s`); /catalog/facets returns `qualities` (cheap GROUP BY tier, cached in transient `bt_cat_facets_v2`). Storefront: **Quality** header dropdown + sidebar group at the bottom, mirrored off Fit (URL/chip/markActive). No Good/Better/Best badge on cards or PDP — filter-only.
+- OPEN: Price Point Premium tees tagged whole-page **better** (not split good/better) pending Dillon. Style#-format mismatches (e.g. Gildan stored as G500000 vs 5000) would miss — add aliases if coverage looks thin.
 
 ## What this is
 A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink & Thread — family print shop). It ingests multiple suppliers (S&S Activewear, SanMar, EG-PRO) into one cache table and renders a BT-branded blank-apparel catalog with a quote flow (browse blanks → pick sizes → decoration → send to quote desk; no checkout). Retail = S&S cost × markup; cost is never shown to customers.

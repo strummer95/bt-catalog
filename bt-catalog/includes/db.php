@@ -178,6 +178,9 @@ function bt_cat_upsert($row) {
         'tier' => '', 'active' => 1,
     );
     $row = array_merge($defaults, array_intersect_key($row, $defaults));
+    if ($row['tier'] === '' && function_exists('bt_cat_tier_for')) {
+        $row['tier'] = bt_cat_tier_for($row['supplier'], $row['style_no']);
+    }
     $row['updated_at'] = current_time('mysql');
 
     $cols   = implode(',', array_keys($row));

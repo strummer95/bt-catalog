@@ -8,7 +8,7 @@
     ['Red','#b3132a'],['Green','#1f7a44'],['Yellow','#e8a417'],['Orange','#e8601c'],
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
-  var F = { s:'', brand:'', category:'', fit:'', color:'', page:1 };
+  var F = { s:'', brand:'', category:'', fit:'', color:'', quality:'', page:1 };
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
@@ -19,6 +19,7 @@
     if (F.category) q.push('category=' + encodeURIComponent(F.category));
     if (F.fit)      q.push('fit=' + encodeURIComponent(F.fit));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
+    if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
     if (F.page > 1) q.push('page=' + F.page);
     if (curPid)     q.push('pid=' + encodeURIComponent(curPid));
     try { history.replaceState(null, '', location.pathname + (q.length ? ('?' + q.join('&')) : '')); } catch(e){}
@@ -31,6 +32,7 @@
     F.category = p.get('category') || '';
     F.fit      = p.get('fit') || '';
     F.color    = p.get('color') || '';
+    F.quality  = p.get('quality') || '';
     F.page     = parseInt(p.get('page') || '1', 10) || 1;
     return p.get('pid');
   }
@@ -61,6 +63,7 @@
         '<div class="cm"><span class="cmlabel">Categories <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mCats"></div></div>' +
         '<div class="cm"><span class="cmlabel">Fit <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mFit"></div></div>' +
         '<div class="cm"><span class="cmlabel">Colors <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mColors"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Quality <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mQuality"></div></div>' +
       '</nav>' +
       '<div class="csearch">\uD83D\uDD0D<input id="btSearch" placeholder="Search style # or product\u2026"></div>' +
     '</div></div>' +
@@ -70,6 +73,7 @@
         '<div class="fsec"><div class="fhead">Fit</div><div class="fbody" id="fFit"></div></div>' +
         '<div class="fsec"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
         '<div class="fsec"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
+        '<div class="fsec"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
       '</aside>' +
       '<main>' +
       '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div id="btActive"></div></div>' +
@@ -98,7 +102,7 @@
 
   function loadFacets(){
     api('catalog/facets').then(function(f){
-      var b = (f && f.brands) || [], c = (f && f.categories) || [], fits = (f && f.fits) || [];
+      var b = (f && f.brands) || [], c = (f && f.categories) || [], fits = (f && f.fits) || [], quals = (f && f.qualities) || [];
       document.getElementById('mBrands').innerHTML =
         '<div class="mega"><div class="megacol megabrands">' +
         b.map(function(x){ return '<div class="megai" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
@@ -115,6 +119,10 @@
         '<div class="mega"><div class="megacol">' +
         FAMILIES.map(function(fm){ return '<div class="megai colori" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('') +
         '</div></div>';
+      document.getElementById('mQuality').innerHTML =
+        '<div class="mega"><div class="megacol">' +
+        quals.map(function(x){ return '<div class="megai" data-quality="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
+        '</div></div>';
 
       // sidebar lists (same data attrs as the header menus -> bound together below)
       var sCats = document.getElementById('fCats');
@@ -123,6 +131,8 @@
       if (sCats) sCats.innerHTML = c.map(function(x){ return '<div class="fitem" data-cat="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
       var sFit = document.getElementById('fFit');
       if (sFit) sFit.innerHTML = fits.map(function(x){ return '<div class="fitem" data-fit="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
+      var sQual = document.getElementById('fQuality');
+      if (sQual) sQual.innerHTML = quals.map(function(x){ return '<div class="fitem" data-quality="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
       if (sBr)   sBr.innerHTML   = b.map(function(x){ return '<div class="fitem" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
       if (sCols) sCols.innerHTML = FAMILIES.map(function(fm){ return '<div class="fitem fcolor" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('');
 
@@ -130,6 +140,7 @@
       root.querySelectorAll('[data-cat]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('category', el.getAttribute('data-cat')); }); });
       root.querySelectorAll('[data-color]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('color', el.getAttribute('data-color')); }); });
       root.querySelectorAll('[data-fit]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('fit', el.getAttribute('data-fit')); }); });
+      root.querySelectorAll('[data-quality]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('quality', el.getAttribute('data-quality')); }); });
       markActive();
     });
   }
@@ -140,7 +151,7 @@
   }
   function renderActive(){
     var bits = [];
-    ['brand','category','fit','color'].forEach(function(k){
+    ['brand','category','fit','color','quality'].forEach(function(k){
       if (F[k]) bits.push('<span class="chip" data-clear="'+k+'" style="display:inline-block;background:#f1f1fb;color:#27267e;border-radius:20px;padding:4px 12px;font-size:13px;margin-left:8px;cursor:pointer">'+esc(F[k])+' \u00d7</span>');
     });
     var el = document.getElementById('btActive');
@@ -153,7 +164,8 @@
       return (el.getAttribute('data-brand') && el.getAttribute('data-brand') === F.brand) ||
              (el.getAttribute('data-cat')   && el.getAttribute('data-cat')   === F.category) ||
              (el.getAttribute('data-color') && el.getAttribute('data-color') === F.color) ||
-             (el.getAttribute('data-fit')   && el.getAttribute('data-fit')   === F.fit);
+             (el.getAttribute('data-fit')   && el.getAttribute('data-fit')   === F.fit) ||
+             (el.getAttribute('data-quality') && el.getAttribute('data-quality') === F.quality);
     }
     root.querySelectorAll('.fitem').forEach(function(el){ el.classList.toggle('active', !!on(el)); });
     root.querySelectorAll('.megai').forEach(function(el){ el.classList.toggle('on', !!on(el)); });
@@ -166,8 +178,9 @@
     if (F.brand) q += '&brand=' + encodeURIComponent(F.brand);
     if (F.category) q += '&category=' + encodeURIComponent(F.category);
     if (F.fit) q += '&fit=' + encodeURIComponent(F.fit);
+    if (F.quality) q += '&quality=' + encodeURIComponent(F.quality);
     if (F.color) q += '&color=' + encodeURIComponent(F.color);
-    if (!F.s && !F.brand && !F.category && !F.fit && !F.color) q += '&featured=1';
+    if (!F.s && !F.brand && !F.category && !F.fit && !F.color && !F.quality) q += '&featured=1';
     var grid = document.getElementById('btGrid');
     grid.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8a8aa0">Loading\u2026</div>';
     api(q).then(function(d){

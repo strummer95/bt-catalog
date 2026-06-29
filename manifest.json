@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.11.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.11.3.zip",
+  "version": "0.12.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.12.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Bug fix: filtered catalog views (e.g. a single brand) showed a count but 'No styles match'. The product-type sort had literal % LIKE patterns inside a prepared query, which broke the item fetch. Now escaped, and the Fit filter uses bound parameters. Includes the earlier speed fix and brand-name wrap."
+  "changelog": "New Quality filter (Good/Better/Best) built from the SanMar Navigator guides, at the bottom of the sidebar plus a header dropdown. Tiers match by style number across all suppliers; EG-PRO is Best, Nike is excluded. Tags on import and backfills existing items automatically. No Good/Better/Best label shows on products."
 }
