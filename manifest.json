@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.8.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.0.zip",
+  "version": "0.8.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar pricing fixed: reads the piece price (qty 1) per size and uses the lowest size as the 'from' cost (PC61 = $3.02 current). All three SanMar services now correct — the catalog import is ready to run."
+  "changelog": "SanMar Discover fix: getProductSellable now sends the required isSellable flag, plus a fallback parser so the style list is read reliably."
 }

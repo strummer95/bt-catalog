@@ -573,7 +573,7 @@ function bt_cat_sanmar_discover() {
     $cr = bt_cat_sanmar_creds();
     $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRODUCT, 'getProductSellable', array(
         'wsVersion' => '1.0.0', 'id' => $cr['id'], 'password' => $cr['pw'],
-        'localizationCountry' => 'US', 'localizationLanguage' => 'en', 'productId' => '',
+        'isSellable' => true,
     ));
     if (!$r['ok']) return $r;
     $ids = array();
@@ -582,6 +582,12 @@ function bt_cat_sanmar_discover() {
             $pid = bt_cat_sanmar_find_key($ps, array('productId'));
             if ($pid) $ids[$pid] = true;
         }
+    }
+    // Fallback: if the expected path missed, walk the whole response for productId values.
+    if (!$ids) {
+        array_walk_recursive($r['data'], function ($v, $k) use (&$ids) {
+            if ($k === 'productId' && is_scalar($v) && $v !== '') $ids[(string) $v] = true;
+        });
     }
     return array('ok' => true, 'ids' => array_keys($ids), 'count' => count($ids), 'request' => $r['request']);
 }
