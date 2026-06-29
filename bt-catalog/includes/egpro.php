@@ -78,6 +78,34 @@ function bt_cat_egpro_clean_color($val) {
 }
 
 /**
+ * EG-PRO's feed carries no color hex, so the storefront swatch chips render
+ * blank. Map their finite, named palette to representative hex values (stored
+ * without '#', matching the S&S convention) so the chips fill in — and so the
+ * navy-first ranking can use hex too. Unknown names fall back to '' (grey chip).
+ * Two-tone codes (Black/WH, OX/BK…) map to their dominant color.
+ */
+function bt_cat_egpro_hex($name) {
+    static $map = array(
+        'black' => '101012', 'black/wh' => '101012',
+        'white' => 'ffffff',
+        'navy' => '1b1f3b', 'nb' => '1b1f3b',
+        'royal' => '1e4fa3',
+        'red' => 'c8202f', 'cardinal' => '8c1d2c', 'maroon' => '6b1f2a',
+        'forest green' => '1d3b2a', 'kelly green' => '2f9e44', 'od green' => '5a5a3c', 'sage' => '9caf88',
+        'purple' => '5b2a86', 'mauve' => '9a7b8a',
+        'pink' => 'f4a7c0', 'hot pink' => 'e7508a',
+        'gold' => 'd4af37', 'vegas gold' => 'b6a76c', 'maize' => 'f4d35e',
+        'burnt orange' => 'b1500f', 'texas orange' => 'bf5700', 'safety orange' => 'ff6a13',
+        'safety yellow' => 'd7e600',
+        'light blue' => '8fc1e3',
+        'light grey' => 'c7c9cc', 'graphite' => '4a4d50', 'carbon' => '3a3d40',
+        'steel' => '71797e', 'oxford' => '5b5e62', 'ox/bk' => '5b5e62', 'ox/rd' => '5b5e62', 'ox/ry' => '5b5e62',
+    );
+    $k = strtolower(trim((string) $name));
+    return isset($map[$k]) ? $map[$k] : '';
+}
+
+/**
  * Pull the useful parts out of EG-PRO's Shopify body_html and leave the rest.
  * Their description carries Fabric + Weight + a feature bullet list, but also a
  * "$X MSRP (sign in to view net pricing)" line (must NOT show on our store), an
@@ -184,9 +212,10 @@ function bt_cat_egpro_reduce($product) {
     // Colors, in the store's listed order.
     $colors = array();
     foreach (bt_cat_egpro_option_values($product, 'Color') as $cv) {
+        $clean = bt_cat_egpro_clean_color($cv);
         $colors[] = array(
-            'name'   => bt_cat_egpro_clean_color($cv),
-            'hex'    => '',                                   // feed carries no hex
+            'name'   => $clean,
+            'hex'    => bt_cat_egpro_hex($clean),            // mapped from name (feed has none)
             'img'    => isset($colorImg[$cv]) ? $colorImg[$cv] : $fallbackImg,
             'swatch' => '',
         );

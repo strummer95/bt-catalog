@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.10.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.3.zip",
+  "version": "0.10.4",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.4.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Navy-first default colorway now works for SanMar and EG-PRO too. Since those suppliers carry no hex (only S&S does), the rule now also recognizes dark-blue and gray by color NAME (navy, royal, cobalt, indigo, midnight, marine; charcoal/graphite/slate/oxford), so a style with no literal 'navy' still defaults to a dark/neutral color like it does for S&S."
+  "changelog": "EG-PRO color swatches now show a real color: their 34 named colors are mapped to hex values so the chips fill in (re-run EG-PRO import/refresh to apply). Catalog lists now sort by product-type popularity too — t-shirts first, then polos/tanks/fleece/bottoms, with jackets and masks/accessories last — so browsing a brand leads with shirts."
 }

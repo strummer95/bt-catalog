@@ -1,6 +1,6 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.10.3**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.10.4**.
 
-# BT Catalog — Project Handoff (current as of v0.10.3)
+# BT Catalog — Project Handoff (current as of v0.10.4)
 
 ## What this is
 A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink & Thread — family print shop). It ingests multiple suppliers (S&S Activewear, SanMar, EG-PRO) into one cache table and renders a BT-branded blank-apparel catalog with a quote flow (browse blanks → pick sizes → decoration → send to quote desk; no checkout). Retail = S&S cost × markup; cost is never shown to customers.

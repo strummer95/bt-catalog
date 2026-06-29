@@ -138,8 +138,24 @@ function bt_cat_rest_list($req) {
         $relArgs[] = '%' . $wpdb->esc_like($s) . '%';
     }
 
+    // Type "popularity" order: shirts first, accessories/masks last. Keyword
+    // match on the category so it works across suppliers (applies to every
+    // filtered/searched/browsed list; pinned Popular styles still win above it).
+    $typeCase =
+        "CASE
+            WHEN LOWER(category) LIKE '%tee%' OR LOWER(category) LIKE '%t-shirt%' OR LOWER(category) LIKE '%tshirt%' THEN 0
+            WHEN LOWER(category) LIKE '%polo%' THEN 1
+            WHEN LOWER(category) LIKE '%tank%' THEN 2
+            WHEN LOWER(category) LIKE '%hoodie%' OR LOWER(category) LIKE '%fleece%' OR LOWER(category) LIKE '%sweatshirt%' OR LOWER(category) LIKE '%crew%' OR LOWER(category) LIKE '%1/4 zip%' OR LOWER(category) LIKE '%quarter zip%' OR LOWER(category) LIKE '%pullover%' OR LOWER(category) LIKE '%layer%' THEN 3
+            WHEN LOWER(category) LIKE '%short%' OR LOWER(category) LIKE '%pant%' OR LOWER(category) LIKE '%jogger%' OR LOWER(category) LIKE '%bottom%' OR LOWER(category) LIKE '%legging%' THEN 4
+            WHEN LOWER(category) LIKE '%jacket%' OR LOWER(category) LIKE '%outerwear%' OR LOWER(category) LIKE '%vest%' THEN 5
+            WHEN LOWER(category) LIKE '%cap%' OR LOWER(category) LIKE '%hat%' OR LOWER(category) LIKE '%headwear%' OR LOWER(category) LIKE '%beanie%' OR LOWER(category) LIKE '%bag%' OR LOWER(category) LIKE '%sock%' OR LOWER(category) LIKE '%accessor%' THEN 7
+            WHEN LOWER(category) LIKE '%non-medical%' OR LOWER(category) LIKE '%mask%' THEN 8
+            ELSE 6
+        END ASC, ";
+
     $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
-             FROM $t WHERE $wsql ORDER BY $relCase $popCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
+             FROM $t WHERE $wsql ORDER BY $relCase $popCase $typeCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
     $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $relArgs, $popArgs, array($per, $off))), ARRAY_A);
 
     return array(
