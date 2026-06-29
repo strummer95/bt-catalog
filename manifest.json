@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.8.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.3.zip",
+  "version": "0.9.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.9.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Added a 'SanMar items in your catalog' table on the SanMar page so you can verify exactly what got imported — brand, style, cost, retail, colors, and a thumbnail — without leaving the admin."
+  "changelog": "Smarter SanMar import: instead of skipping whole brands, it now imports only SanMar styles your S&S catalog doesn't already have (matched by brand + style number) — so you get the odd Richardson/Sport-Tek S&S lacks without duplicates. The skip-entirely list now covers just the basics S&S stocks fully (Gildan, Hanes, etc.). Added 'Re-check imported items' to clean up duplicates from earlier runs."
 }

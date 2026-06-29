@@ -412,6 +412,11 @@ function bt_cat_sanmar_page() {
         $st = bt_cat_sanmar_stats(); $st['running'] = false; update_option('bt_cat_sanmar_stats', wp_json_encode($st), false);
         echo '<div class="notice notice-warning is-dismissible"><p>Import paused.</p></div>';
     }
+    if (isset($_POST['bt_cat_cleanup_sanmar'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        $n = bt_cat_sanmar_cleanup();
+        echo '<div class="notice notice-success is-dismissible"><p>Re-checked imported SanMar items — removed ' . (int) $n . ' that S&amp;S already carries or are on the skip list.</p></div>';
+    }
 
     $creds = bt_cat_sanmar_creds();
     $soap  = class_exists('SoapClient');
@@ -529,7 +534,7 @@ function bt_cat_sanmar_page() {
         ?>
         <form method="post" style="max-width:900px">
             <?php wp_nonce_field('bt_cat_sanmar_import'); ?>
-            <p class="description"><strong>Step 1.</strong> Brands to <strong>skip</strong> (the ones S&amp;S already carries) — one per line. Everything else (SanMar's exclusive lines) gets imported.</p>
+            <p class="description"><strong>Step 1.</strong> Brands to <strong>skip entirely</strong> — ones you only want from S&amp;S (the basics S&amp;S stocks completely: Gildan, Hanes, Jerzees, etc.). One per line. For <em>every other brand</em>, the import automatically brings in only the SanMar styles your S&amp;S catalog doesn't already have (matched by style number) — so you get the odd Richardson or Sport-Tek that S&amp;S lacks, without duplicating what's already there.</p>
             <textarea name="denylist" rows="6" class="large-text code"><?php echo esc_textarea($deny_raw); ?></textarea>
             <p><button type="submit" name="bt_cat_save_denylist" value="1" class="button">Save skip list</button></p>
 
@@ -540,6 +545,7 @@ function bt_cat_sanmar_page() {
                 &nbsp;<button type="submit" name="bt_cat_import_batch" value="1" class="button" <?php echo $queued ? '' : 'disabled'; ?>>Run 25 now</button>
                 <?php if ($running): ?>&nbsp;<button type="submit" name="bt_cat_import_stop" value="1" class="button">Pause</button><?php endif; ?>
             </p>
+            <p><button type="submit" name="bt_cat_cleanup_sanmar" value="1" class="button">Re-check imported items</button> <span class="description">Removes already-imported SanMar items that S&amp;S carries or that are on the skip list (run after editing the skip list).</span></p>
 
             <?php if ($discover !== null): ?>
                 <?php if (!empty($discover['ok'])): ?>
@@ -556,7 +562,8 @@ function bt_cat_sanmar_page() {
                     <tr><td style="width:160px"><strong>Status</strong></td><td><?php echo $running ? '<span style="color:#1a7f37">running…</span>' : ($proc >= $queued ? '<span style="color:#1a7f37">complete</span>' : 'paused'); ?></td></tr>
                     <tr><td><strong>Progress</strong></td><td><?php echo (int) $proc; ?> of <?php echo (int) $queued; ?> styles checked</td></tr>
                     <tr><td><strong>Imported</strong></td><td><?php echo (int) (isset($st['imported']) ? $st['imported'] : 0); ?></td></tr>
-                    <tr><td><strong>Skipped (S&amp;S brands)</strong></td><td><?php echo (int) (isset($st['skipped']) ? $st['skipped'] : 0); ?></td></tr>
+                    <tr><td><strong>Skipped — already in S&amp;S</strong></td><td><?php echo (int) (isset($st['skipped_dup']) ? $st['skipped_dup'] : 0); ?> <span style="font-size:11px;color:#888">(same style S&amp;S already carries)</span></td></tr>
+                    <tr><td><strong>Skipped — brand on skip list</strong></td><td><?php echo (int) (isset($st['skipped_brand']) ? $st['skipped_brand'] : 0); ?></td></tr>
                     <tr><td><strong>Errors</strong></td><td><?php echo (int) (isset($st['errors']) ? $st['errors'] : 0); ?><?php echo !empty($st['last_error']) ? ' <span style="font-size:11px;color:#888">(last: ' . esc_html($st['last_error']) . ')</span>' : ''; ?></td></tr>
                 </table>
                 <?php
@@ -650,11 +657,49 @@ function bt_cat_sanmar_is_shared($brand) {
     return in_array(bt_cat_brand_norm($brand), bt_cat_sanmar_denylist(), true);
 }
 
+/** Normalize a style number for cross-supplier comparison. */
+function bt_cat_sanmar_numnorm($s) {
+    return strtolower(preg_replace('/[^a-z0-9]/i', '', (string) $s));
+}
+
+/** Build an index of S&S styles already in the catalog: numnorm => set of brand_norms. */
+function bt_cat_sanmar_ss_index() {
+    static $idx = null;
+    if ($idx !== null) return $idx;
+    global $wpdb;
+    $t = bt_cat_table();
+    $rows = $wpdb->get_results("SELECT brand, style_no FROM $t WHERE supplier='ss'", ARRAY_A);
+    $idx = array();
+    foreach ((array) $rows as $r) {
+        $num = bt_cat_sanmar_numnorm($r['style_no']);
+        if ($num === '') continue;
+        $bn = bt_cat_brand_norm($r['brand']);
+        if (!isset($idx[$num])) $idx[$num] = array();
+        $idx[$num][$bn] = true;
+    }
+    return $idx;
+}
+
+/** Does S&S already carry this brand + style number? (brand match is fuzzy: equal or either-contains). */
+function bt_cat_sanmar_ss_has($brand, $style) {
+    $idx = bt_cat_sanmar_ss_index();
+    $num = bt_cat_sanmar_numnorm($style);
+    if ($num === '' || !isset($idx[$num])) return false;
+    $bn = bt_cat_brand_norm($brand);
+    if ($bn === '') return isset($idx[$num]); // no brand to compare — number alone
+    foreach (array_keys($idx[$num]) as $ssb) {
+        if ($ssb === $bn) return true;
+        if ($ssb !== '' && (strpos($ssb, $bn) !== false || strpos($bn, $ssb) !== false)) return true;
+    }
+    return false;
+}
+
 /** Import one style: get product first, skip if S&S carries the brand, else add media+pricing and upsert. */
 function bt_cat_sanmar_import_one($style) {
     $prod = bt_cat_sanmar_product($style);
     if (empty($prod['ok'])) return array('status' => 'error', 'msg' => isset($prod['error']) ? $prod['error'] : 'product failed');
-    if (bt_cat_sanmar_is_shared($prod['brand'])) return array('status' => 'skipped', 'brand' => $prod['brand']);
+    if (bt_cat_sanmar_is_shared($prod['brand'])) return array('status' => 'skipped', 'reason' => 'brand', 'brand' => $prod['brand']);
+    if (bt_cat_sanmar_ss_has($prod['brand'], $style)) return array('status' => 'skipped', 'reason' => 'dup', 'brand' => $prod['brand']);
 
     // Keeper — now pull images + pricing.
     $media = bt_cat_sanmar_media($style);
@@ -674,6 +719,21 @@ function bt_cat_sanmar_import_one($style) {
         'detail_done' => 1, 'active' => 1,
     ));
     return array('status' => 'imported', 'brand' => $prod['brand'], 'colors' => count($colors), 'cost' => $cost);
+}
+
+/** Re-apply skip + dedup rules to already-imported SanMar rows; delete ones that now fail. */
+function bt_cat_sanmar_cleanup() {
+    global $wpdb;
+    $t = bt_cat_table();
+    $rows = $wpdb->get_results("SELECT id, supplier_style_id, brand FROM $t WHERE supplier='sanmar'", ARRAY_A);
+    $removed = 0;
+    foreach ((array) $rows as $r) {
+        if (bt_cat_sanmar_is_shared($r['brand']) || bt_cat_sanmar_ss_has($r['brand'], $r['supplier_style_id'])) {
+            $wpdb->delete($t, array('id' => $r['id']));
+            $removed++;
+        }
+    }
+    return $removed;
 }
 
 function bt_cat_sanmar_stats() {
@@ -699,7 +759,13 @@ function bt_cat_sanmar_run_batch($n = 20) {
             if (!empty($r['brand'])) { if (!isset($stats['brands_in'])) $stats['brands_in'] = array(); $stats['brands_in'][$r['brand']] = (isset($stats['brands_in'][$r['brand']]) ? $stats['brands_in'][$r['brand']] : 0) + 1; }
         } elseif ($r['status'] === 'skipped') {
             $stats['skipped'] = (isset($stats['skipped']) ? $stats['skipped'] : 0) + 1;
-            if (!empty($r['brand'])) { if (!isset($stats['brands_out'])) $stats['brands_out'] = array(); $stats['brands_out'][$r['brand']] = (isset($stats['brands_out'][$r['brand']]) ? $stats['brands_out'][$r['brand']] : 0) + 1; }
+            $reason = isset($r['reason']) ? $r['reason'] : 'brand';
+            if ($reason === 'dup') {
+                $stats['skipped_dup'] = (isset($stats['skipped_dup']) ? $stats['skipped_dup'] : 0) + 1;
+            } else {
+                $stats['skipped_brand'] = (isset($stats['skipped_brand']) ? $stats['skipped_brand'] : 0) + 1;
+                if (!empty($r['brand'])) { if (!isset($stats['brands_out'])) $stats['brands_out'] = array(); $stats['brands_out'][$r['brand']] = (isset($stats['brands_out'][$r['brand']]) ? $stats['brands_out'][$r['brand']] : 0) + 1; }
+            }
         } else { $stats['errors'] = (isset($stats['errors']) ? $stats['errors'] : 0) + 1; $stats['last_error'] = $style . ': ' . (isset($r['msg']) ? $r['msg'] : ''); }
         usleep(120000); // gentle throttle (~8/sec max of 3-call assemblies)
     }
