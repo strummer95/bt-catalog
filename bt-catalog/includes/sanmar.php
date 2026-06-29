@@ -146,6 +146,21 @@ function bt_cat_sanmar_preview($style = 'PC61') {
     return array('ok' => true, 'message' => 'Diagnostic for "' . $style . '":', 'json' => $out);
 }
 
+/** Trim large sequential arrays to $max entries (recursive), to keep previews readable. */
+function bt_cat_sanmar_trim($v, $max) {
+    if (!is_array($v)) return $v;
+    $isList = (array_keys($v) === range(0, count($v) - 1));
+    if ($isList && count($v) > $max) {
+        $v = array_slice($v, 0, $max);
+        $v[] = '… (trimmed)';
+    }
+    foreach ($v as $k => $vv) {
+        if ($vv === '… (trimmed)') continue;
+        $v[$k] = bt_cat_sanmar_trim($vv, $max);
+    }
+    return $v;
+}
+
 /** Normalize a PromoStandards node that may be a single object or a list into a list. */
 function bt_cat_sanmar_list($node) {
     if (!is_array($node)) return array();
