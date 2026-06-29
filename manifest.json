@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.10.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.1.zip",
+  "version": "0.10.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Style numbers across the catalog now carry a short supplier tag — SS (S&S), SM (SanMar), EG (EG-PRO) — e.g. 'SM Style 1730'. Shows on product cards, the product page, and quote lines."
+  "changelog": "EG-PRO product details are now parsed cleanly from their feed: Fabric and Weight show as proper spec rows, the feature list becomes the product description, and the supplier MSRP/sign-in line, embedded widget junk, and links back to egpro.com are stripped out. Re-run EG-PRO import/refresh to apply."
 }

@@ -77,6 +77,49 @@ function bt_cat_egpro_clean_color($val) {
     return trim(preg_replace('/-\d+$/', '', (string) $val));
 }
 
+/**
+ * Pull the useful parts out of EG-PRO's Shopify body_html and leave the rest.
+ * Their description carries Fabric + Weight + a feature bullet list, but also a
+ * "$X MSRP (sign in to view net pricing)" line (must NOT show on our store), an
+ * embedded widget's invisible <div> junk, and a "Learn more" link back to
+ * egpro.com. Returns ['fabric','weight','html'] where html is a clean,
+ * self-built <ul> of features (escaped — no raw supplier HTML reaches the page).
+ */
+function bt_cat_egpro_desc($html) {
+    $html = (string) $html;
+    $out  = array('fabric' => '', 'weight' => '', 'html' => '');
+
+    // Collapse runs of whitespace INCLUDING non-breaking spaces (EG-PRO's markup
+    // uses U+00A0 between words), then trim.
+    $ws = function ($s) {
+        $s = str_replace("\xC2\xA0", ' ', (string) $s);   // nbsp -> space
+        return trim(preg_replace('/\s+/u', ' ', $s));
+    };
+
+    if (preg_match('/Fabric:.*?<\/strong>(.*?)<\/p>/is', $html, $m)) {
+        $f = html_entity_decode(wp_strip_all_tags($m[1]), ENT_QUOTES, 'UTF-8');
+        $f = $ws(preg_replace('/\s*Learn more\.?\s*$/i', '', $ws($f)));   // drop egpro.com link text
+        $out['fabric'] = $f;
+    }
+    if (preg_match('/Weight:.*?<\/strong>(.*?)<\/p>/is', $html, $m)) {
+        $out['weight'] = $ws(html_entity_decode(wp_strip_all_tags($m[1]), ENT_QUOTES, 'UTF-8'));
+    }
+    if (preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $html, $mm)) {
+        $feat = array();
+        foreach ($mm[1] as $li) {
+            $t = $ws(html_entity_decode(wp_strip_all_tags(str_ireplace(array('<br>', '<br/>', '<br />'), ' ', $li)), ENT_QUOTES, 'UTF-8'));
+            if ($t === '' || stripos($t, 'Sizes:') === 0) continue;      // sizes shown separately
+            $feat[] = $t;
+        }
+        if ($feat) {
+            $lis = '';
+            foreach ($feat as $t) $lis .= '<li>' . esc_html($t) . '</li>';
+            $out['html'] = '<ul>' . $lis . '</ul>';
+        }
+    }
+    return $out;
+}
+
 /** Find the variant option position (1..3) for an option name, or 0 if absent. */
 function bt_cat_egpro_option_pos($product, $name) {
     if (empty($product['options']) || !is_array($product['options'])) return 0;
@@ -152,21 +195,26 @@ function bt_cat_egpro_reduce($product) {
     // Sizes, in the store's listed order.
     $sizes = bt_cat_egpro_option_values($product, 'Size');
 
-    // Weight (oz) from grams on the first variant that reports it.
+    // Weight (oz) from grams on the first variant that reports it (fallback only).
     $weight = null;
     foreach ($variants as $v) {
         if (!empty($v['grams'])) { $weight = round((float) $v['grams'] / 28.3495, 2); break; }
     }
 
+    // Parse the description: structured Fabric/Weight + clean feature bullets.
+    $desc = bt_cat_egpro_desc($product['body_html'] ?? '');
+
     return array(
         'code'        => $parsed['code'],
         'name'        => $parsed['name'],
         'category'    => (string) ($product['product_type'] ?? ''),
-        'description' => (string) ($product['body_html'] ?? ''),
+        'description' => $desc['html'],                      // clean, escaped feature bullets
+        'fabric'      => $desc['fabric'],
+        'weight_text' => $desc['weight'],                    // EG-PRO's stated fabric weight
         'colors'      => $colors,
         'sizes'       => array_values($sizes),
         'cost'        => $cost,
-        'weight_oz'   => $weight,
+        'weight_oz'   => $weight,                            // grams-derived fallback
         'img'         => !empty($colors[0]['img']) ? $colors[0]['img'] : $fallbackImg,
     );
 }
@@ -177,7 +225,9 @@ function bt_cat_egpro_store($product) {
     if ($r === null) return array('status' => 'skipped');
 
     $specs = array(array('Brand', 'EG-PRO'));
-    if ($r['weight_oz'] !== null) $specs[] = array('Weight', $r['weight_oz'] . ' oz');
+    if ($r['fabric'] !== '')      $specs[] = array('Fabric', $r['fabric']);
+    if ($r['weight_text'] !== '') $specs[] = array('Weight', $r['weight_text']);
+    elseif ($r['weight_oz'] !== null) $specs[] = array('Weight', $r['weight_oz'] . ' oz');
 
     bt_cat_upsert(array(
         'supplier'          => 'egpro',
