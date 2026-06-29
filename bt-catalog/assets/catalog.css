@@ -48,3 +48,8 @@
 #btcat-root .herorow{display:flex;align-items:center;justify-content:space-between;gap:14px}
 #btcat-root .herorow h1{margin:0;min-width:0}
 #btcat-root .herorow .btcat-fab{flex-shrink:0}
+
+/* Long brand names (e.g. "Artisan Collection by Reprime") were overflowing
+   their column in the Brands menu because .megai is nowrap. Let brand items
+   wrap within their cell so the full name stays visible without overlapping. */
+#btcat-root .megabrands .megai{white-space:normal;line-height:1.2;min-width:0;overflow-wrap:anywhere}

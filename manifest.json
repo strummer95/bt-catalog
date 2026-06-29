@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.11.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.11.1.zip",
+  "version": "0.11.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.11.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Performance fix. The new Fit filter had added four full-table COUNT queries on every catalog load; fits are now derived from the category list with no extra queries, and the facet menu is cached (refreshed automatically after an import or clear). The product-type sort no longer runs on category-filtered or search results where it isn't needed. The catalog should feel much faster."
+  "changelog": "Fixed long brand names (e.g. Artisan Collection by Reprime) overflowing into the next column in the Brands menu — they now wrap neatly within their column."
 }
