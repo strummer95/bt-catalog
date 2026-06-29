@@ -269,12 +269,22 @@ function bt_cat_sanmar_pricing($style) {
         'configurationType' => 'Blank',
     ));
     if (!$r['ok']) return $r;
-    // Find all numeric "price" values; take the lowest as the piece/base cost.
-    $prices = array();
-    array_walk_recursive($r['data'], function ($v, $k) use (&$prices) {
-        if (in_array($k, array('price', 'salePrice'), true) && is_numeric($v)) $prices[] = (float) $v;
-    });
-    $cost = $prices ? min($prices) : 0;
+    // Structure: Configuration.PartArray.Part[] -> each PartPriceArray.PartPrice (single or list of qty breaks).
+    // Take the PIECE price (smallest minQuantity) per part; cost = lowest size's piece price ("from").
+    $parts = isset($r['data']['Configuration']['PartArray']['Part'])
+        ? bt_cat_sanmar_list($r['data']['Configuration']['PartArray']['Part']) : array();
+    $piece = array();
+    foreach ($parts as $p) {
+        $pp = isset($p['PartPriceArray']['PartPrice']) ? bt_cat_sanmar_list($p['PartPriceArray']['PartPrice']) : array();
+        $best = null; $bestQty = PHP_INT_MAX;
+        foreach ($pp as $row) {
+            $q  = isset($row['minQuantity']) ? (int) $row['minQuantity'] : 1;
+            $pr = isset($row['price']) ? (float) $row['price'] : 0;
+            if ($pr > 0 && $q < $bestQty) { $bestQty = $q; $best = $pr; }
+        }
+        if ($best !== null) $piece[] = $best;
+    }
+    $cost = $piece ? min($piece) : 0;
     return array('ok' => true, 'cost' => $cost, 'request' => $r['request']);
 }
 
