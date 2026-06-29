@@ -69,11 +69,11 @@
     '</div></div>' +
     '<div class="wrap shell">' +
       '<aside class="btside" id="btSide">' +
-        '<div class="fsec"><div class="fhead">Categories</div><div class="fbody" id="fCats"></div></div>' +
-        '<div class="fsec"><div class="fhead">Fit</div><div class="fbody" id="fFit"></div></div>' +
-        '<div class="fsec"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
-        '<div class="fsec"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
-        '<div class="fsec"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Categories</div><div class="fbody" id="fCats"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Fit</div><div class="fbody" id="fFit"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
       '</aside>' +
       '<main>' +
       '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div id="btActive"></div></div>' +
@@ -96,6 +96,7 @@
     var labels = root.querySelectorAll('.cmlabel');
     labels.forEach(function(l){ l.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(l.parentNode); }); });
     document.addEventListener('click', function(e){ if(!e.target.closest('.cm')) closeMenus(); });
+    root.querySelectorAll('.fsec .fhead').forEach(function(h){ h.addEventListener('click', function(){ h.parentNode.classList.toggle('collapsed'); }); });
   }
   function toggleMenu(cm){ var o = cm.classList.contains('open'); closeMenus(); if(!o) cm.classList.add('open'); }
   function closeMenus(){ root.querySelectorAll('.cm.open').forEach(function(e){ e.classList.remove('open'); }); }
@@ -400,13 +401,20 @@
         [['text','Names / Text'],['logo','Logo'],['hard','Hard-to-handle']].map(function(t){
           return '<label class="optcard'+(embType===t[0]?' on':'')+'" data-emb="'+t[0]+'"><span class="oct">'+t[1]+'</span></label>';
         }).join('');
+    var qtyBlock = '<div class="secLab">Sizes &amp; quantity</div>' +
+      quote.map(function(l,idx){
+        var inputs = SIZES_ORDER.map(function(z){
+          return '<label class="qsz"><span>'+z+'</span><input type="number" min="0" value="'+(l.sizes[z]||'')+'" placeholder="0" data-i="'+idx+'" data-z="'+z+'"></label>';
+        }).join('');
+        return '<div class="qline"><div class="meta"><div class="n">'+esc(l.brand)+' '+esc(l.name)+'</div><div class="s">'+supLabel(l.supplier)+'Style '+esc(l.style)+' \u00b7 '+esc(l.color)+'</div><div class="qsizes">'+inputs+'</div><div class="qsum" id="qsum'+idx+'">'+l.qty+' pcs \u00b7 '+money(l.price)+'/ea</div></div></div>';
+      }).join('');
     b.innerHTML =
       '<div class="secLab">How are we decorating it?</div>' +
       '<div class="methsel">' +
         '<button data-m="print" class="'+(method==='print'?'on':'')+'">Printed</button>' +
         '<button data-m="emb" class="'+(method==='emb'?'on':'')+'">Embroidered</button>' +
       '</div>' +
-      sub +
+      sub + qtyBlock +
       '<div class="declabel">All work is <b>full color, high quality</b>. Not sure yet? Leave it \u2014 we\'ll confirm with you.</div>' +
       '<div class="estp" id="btEst"><div class="estp-note">Calculating\u2026</div></div>';
     b.querySelectorAll('[data-m]').forEach(function(x){ x.addEventListener('click', function(){ method=x.getAttribute('data-m'); stepDeco(); }); });
@@ -416,6 +424,7 @@
     document.getElementById('btBack').addEventListener('click', function(){ goStep(1); });
     document.getElementById('btNext').addEventListener('click', function(){ goStep(3); });
 
+    function renderEst(){
     var decoLabel = (method==='emb')
       ? ({text:'Names/Text',logo:'Logo',hard:'Hard-to-handle'}[embType]||'Embroidery')
       : ('Print \u00d7'+locs);
@@ -437,6 +446,13 @@
         '<div class="estp-calc"><span>'+money(d.perShirt)+' \u00d7 '+totalQty()+(d.discPct?(' \u00b7 '+d.discPct+'% off'):'')+'</span><span class="tot">'+money(d.total)+'</span></div>' +
         '<div class="estp-note">Estimate \u00b7 final quote confirmed by our team</div>';
     });
+    }
+    var estTimer=null;
+    b.querySelectorAll('.qsizes input').forEach(function(i){ i.addEventListener('input', function(){
+      updateLineSize(+i.getAttribute('data-i'), i.getAttribute('data-z'), i.value);
+      clearTimeout(estTimer); estTimer=setTimeout(renderEst,300);
+    }); });
+    renderEst();
   }
 
   function stepSend(){

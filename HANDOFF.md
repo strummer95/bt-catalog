@@ -1,6 +1,6 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.12.0**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.12.1**.
 
-# BT Catalog — Project Handoff (current as of v0.12.0)
+# BT Catalog — Project Handoff (current as of v0.12.1)
 
 ## v0.12.0 — Quality filter (Good/Better/Best)
 - New `includes/tiers.php`: static style#→tier map extracted from the 7 SanMar Navigator guides (Tee, Polo, Sweatshirt, Outerwear, Wovens, Headwear, Bags). 647 styles (235 good / 208 better / 204 best). Edit the $good/$better/$best lists + bump version to change tiers.
@@ -9,6 +9,11 @@
 - `bt_cat_tier_for()` runs inside `bt_cat_upsert()` so every import auto-tags. `bt_cat_apply_tiers()` backfills existing rows; auto-runs once per BT_CAT_VERSION on admin_init (option `bt_cat_tier_stamp`).
 - REST: `quality` param on /catalog (bound `tier = %s`); /catalog/facets returns `qualities` (cheap GROUP BY tier, cached in transient `bt_cat_facets_v2`). Storefront: **Quality** header dropdown + sidebar group at the bottom, mirrored off Fit (URL/chip/markActive). No Good/Better/Best badge on cards or PDP — filter-only.
 - OPEN: Price Point Premium tees tagged whole-page **better** (not split good/better) pending Dillon. Style#-format mismatches (e.g. Gildan stored as G500000 vs 5000) would miss — add aliases if coverage looks thin.
+
+## v0.12.1 — storefront UX
+- **Brand mega-menu** now flows column-major (down col 1, then col 2 …) via CSS multicolumn (`.megabrands{column-count}`) instead of row-major grid — easier to scan alphabetically.
+- **Sidebar filter groups collapsible**, default **collapsed**. `.fhead` toggles `.fsec.collapsed` (caret via `::after`); bound in `bindMenus()`.
+- **Decoration step (step 2) compacted**: smaller Printed/Embroidered buttons (`.methsel button`), tighter `.secLab`/`.optcard`/`.declabel`. The **size/quantity editor now also lives on step 2** (reused `.qline`/`.qsizes`); typing debounces (300ms) a `renderEst()` refresh so the per-shirt estimate updates live. `renderEst()` extracted from the old inline postPrice block.
 
 ## What this is
 A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink & Thread — family print shop). It ingests multiple suppliers (S&S Activewear, SanMar, EG-PRO) into one cache table and renders a BT-branded blank-apparel catalog with a quote flow (browse blanks → pick sizes → decoration → send to quote desk; no checkout). Retail = S&S cost × markup; cost is never shown to customers.
