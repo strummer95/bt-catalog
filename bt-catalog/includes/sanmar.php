@@ -559,6 +559,15 @@ function bt_cat_sanmar_page() {
                     <tr><td><strong>Skipped (S&amp;S brands)</strong></td><td><?php echo (int) (isset($st['skipped']) ? $st['skipped'] : 0); ?></td></tr>
                     <tr><td><strong>Errors</strong></td><td><?php echo (int) (isset($st['errors']) ? $st['errors'] : 0); ?><?php echo !empty($st['last_error']) ? ' <span style="font-size:11px;color:#888">(last: ' . esc_html($st['last_error']) . ')</span>' : ''; ?></td></tr>
                 </table>
+                <?php
+                    $bin  = (isset($st['brands_in']) && is_array($st['brands_in'])) ? $st['brands_in'] : array();
+                    $bout = (isset($st['brands_out']) && is_array($st['brands_out'])) ? $st['brands_out'] : array();
+                    arsort($bin); arsort($bout);
+                    $fmt = function ($a) { $o = array(); foreach ($a as $b => $c) $o[] = esc_html($b) . ' (' . (int) $c . ')'; return implode(', ', $o); };
+                ?>
+                <?php if ($bin): ?><p style="max-width:640px;margin:10px 0 2px"><strong>Brands coming in:</strong> <span style="color:#1a7f37"><?php echo $fmt($bin); ?></span></p><?php endif; ?>
+                <?php if ($bout): ?><p style="max-width:640px;margin:2px 0"><strong>Brands skipped (on your skip list):</strong> <span style="color:#888"><?php echo $fmt($bout); ?></span></p><?php endif; ?>
+                <?php if ($bin): ?><p class="description" style="max-width:640px">See a brand in the green list you don't want? Add it to the skip list above and re-run — already-imported ones can be removed with Clear, or just leave them.</p><?php endif; ?>
                 <?php if ($running): ?><p class="description">Refresh this page to update progress.</p><?php endif; ?>
             <?php endif; ?>
         </form>
@@ -604,21 +613,30 @@ function bt_cat_sanmar_is_shared($brand) {
     return in_array(bt_cat_brand_norm($brand), bt_cat_sanmar_denylist(), true);
 }
 
-/** Import one style: assemble, skip if S&S carries the brand, else upsert. */
+/** Import one style: get product first, skip if S&S carries the brand, else add media+pricing and upsert. */
 function bt_cat_sanmar_import_one($style) {
-    $a = bt_cat_sanmar_assemble($style);
-    if (empty($a['ok'])) return array('status' => 'error', 'msg' => isset($a['error']) ? $a['error'] : 'assemble failed');
-    if (bt_cat_sanmar_is_shared($a['brand'])) return array('status' => 'skipped', 'brand' => $a['brand']);
+    $prod = bt_cat_sanmar_product($style);
+    if (empty($prod['ok'])) return array('status' => 'error', 'msg' => isset($prod['error']) ? $prod['error'] : 'product failed');
+    if (bt_cat_sanmar_is_shared($prod['brand'])) return array('status' => 'skipped', 'brand' => $prod['brand']);
+
+    // Keeper — now pull images + pricing.
+    $media = bt_cat_sanmar_media($style);
+    $price = bt_cat_sanmar_pricing($style);
+    $images = (!empty($media['ok'])) ? $media['images'] : array();
+
     $colors = array();
-    foreach ($a['colors'] as $c) $colors[] = array('name' => $c['name'], 'hex' => '', 'img' => $c['img'], 'swatch' => '');
+    foreach ($prod['colors'] as $cn) {
+        $colors[] = array('name' => $cn, 'hex' => '', 'img' => isset($images[$cn]) ? $images[$cn] : '', 'swatch' => '');
+    }
+    $cost = (!empty($price['ok'])) ? $price['cost'] : 0;
     bt_cat_upsert(array(
         'supplier' => 'sanmar', 'supplier_style_id' => $style, 'style_no' => $style,
-        'brand' => $a['brand'], 'name' => $a['name'], 'category' => $a['category'], 'description' => $a['desc'],
-        'specs' => wp_json_encode(array()), 'colors' => wp_json_encode($colors), 'sizes' => implode(',', $a['sizes']),
-        'cost' => $a['cost'], 'sale_cost' => 0, 'retail' => function_exists('bt_cat_autoprice') ? bt_cat_autoprice($a['cost']) : round($a['cost'] * 2, 2),
+        'brand' => $prod['brand'], 'name' => $prod['name'], 'category' => $prod['category'], 'description' => $prod['desc'],
+        'specs' => wp_json_encode(array()), 'colors' => wp_json_encode($colors), 'sizes' => implode(',', $prod['sizes']),
+        'cost' => $cost, 'sale_cost' => 0, 'retail' => function_exists('bt_cat_autoprice') ? bt_cat_autoprice($cost) : round($cost * 2, 2),
         'detail_done' => 1, 'active' => 1,
     ));
-    return array('status' => 'imported', 'brand' => $a['brand'], 'colors' => count($colors), 'cost' => $a['cost']);
+    return array('status' => 'imported', 'brand' => $prod['brand'], 'colors' => count($colors), 'cost' => $cost);
 }
 
 function bt_cat_sanmar_stats() {
@@ -639,9 +657,13 @@ function bt_cat_sanmar_run_batch($n = 20) {
         $pos++; $done++;
         $r = bt_cat_sanmar_import_one($style);
         $stats['processed'] = (isset($stats['processed']) ? $stats['processed'] : 0) + 1;
-        if ($r['status'] === 'imported')      $stats['imported'] = (isset($stats['imported']) ? $stats['imported'] : 0) + 1;
-        elseif ($r['status'] === 'skipped')   $stats['skipped']  = (isset($stats['skipped']) ? $stats['skipped'] : 0) + 1;
-        else { $stats['errors'] = (isset($stats['errors']) ? $stats['errors'] : 0) + 1; $stats['last_error'] = $style . ': ' . (isset($r['msg']) ? $r['msg'] : ''); }
+        if ($r['status'] === 'imported') {
+            $stats['imported'] = (isset($stats['imported']) ? $stats['imported'] : 0) + 1;
+            if (!empty($r['brand'])) { if (!isset($stats['brands_in'])) $stats['brands_in'] = array(); $stats['brands_in'][$r['brand']] = (isset($stats['brands_in'][$r['brand']]) ? $stats['brands_in'][$r['brand']] : 0) + 1; }
+        } elseif ($r['status'] === 'skipped') {
+            $stats['skipped'] = (isset($stats['skipped']) ? $stats['skipped'] : 0) + 1;
+            if (!empty($r['brand'])) { if (!isset($stats['brands_out'])) $stats['brands_out'] = array(); $stats['brands_out'][$r['brand']] = (isset($stats['brands_out'][$r['brand']]) ? $stats['brands_out'][$r['brand']] : 0) + 1; }
+        } else { $stats['errors'] = (isset($stats['errors']) ? $stats['errors'] : 0) + 1; $stats['last_error'] = $style . ': ' . (isset($r['msg']) ? $r['msg'] : ''); }
         usleep(120000); // gentle throttle (~8/sec max of 3-call assemblies)
     }
     update_option('bt_cat_sanmar_pos', $pos, false);

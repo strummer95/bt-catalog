@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.8.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.1.zip",
+  "version": "0.8.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar Discover fix: getProductSellable now sends the required isSellable flag, plus a fallback parser so the style list is read reliably."
+  "changelog": "SanMar import is faster (checks brand before pulling images/pricing, so skipped S&S-overlap brands cost only one call) and now shows a live brand breakdown — what's coming in vs what's skipped — so you can tune the skip list."
 }
