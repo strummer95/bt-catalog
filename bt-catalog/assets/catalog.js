@@ -8,7 +8,7 @@
     ['Red','#b3132a'],['Green','#1f7a44'],['Yellow','#e8a417'],['Orange','#e8601c'],
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
-  var F = { s:'', brand:'', category:'', fit:'', color:'', quality:'', perf:'', page:1 };
+  var F = { s:'', brand:'', category:'', fit:'', color:'', quality:'', page:1 };
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
@@ -20,7 +20,6 @@
     if (F.fit)      q.push('fit=' + encodeURIComponent(F.fit));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
-    if (F.perf)     q.push('perf=1');
     if (F.page > 1) q.push('page=' + F.page);
     if (curPid)     q.push('pid=' + encodeURIComponent(curPid));
     try { history.replaceState(null, '', location.pathname + (q.length ? ('?' + q.join('&')) : '')); } catch(e){}
@@ -34,7 +33,6 @@
     F.fit      = p.get('fit') || '';
     F.color    = p.get('color') || '';
     F.quality  = p.get('quality') || '';
-    F.perf     = p.get('perf') ? '1' : '';
     F.page     = parseInt(p.get('page') || '1', 10) || 1;
     return p.get('pid');
   }
@@ -76,7 +74,6 @@
         '<div class="fsec collapsed"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
-        '<div class="fsec collapsed"><div class="fhead">Features</div><div class="fbody" id="fFeat"></div></div>' +
       '</aside>' +
       '<main>' +
       '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div id="btActive"></div></div>' +
@@ -137,8 +134,6 @@
       if (sFit) sFit.innerHTML = fits.map(function(x){ return '<div class="fitem" data-fit="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
       var sQual = document.getElementById('fQuality');
       if (sQual) sQual.innerHTML = quals.map(function(x){ return '<div class="fitem" data-quality="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
-      var sFeat = document.getElementById('fFeat');
-      if (sFeat) sFeat.innerHTML = ((f && f.perf) > 0) ? '<div class="fitem" data-perf="1">Performance</div>' : '<div class="fitem" style="color:#b0b0c0;cursor:default">None</div>';
       if (sBr)   sBr.innerHTML   = b.map(function(x){ return '<div class="fitem" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
       if (sCols) sCols.innerHTML = FAMILIES.map(function(fm){ return '<div class="fitem fcolor" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('');
 
@@ -147,7 +142,6 @@
       root.querySelectorAll('[data-color]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('color', el.getAttribute('data-color')); }); });
       root.querySelectorAll('[data-fit]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('fit', el.getAttribute('data-fit')); }); });
       root.querySelectorAll('[data-quality]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('quality', el.getAttribute('data-quality')); }); });
-      root.querySelectorAll('[data-perf]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('perf', '1'); }); });
       markActive();
     });
   }
@@ -158,8 +152,8 @@
   }
   function renderActive(){
     var bits = [];
-    ['brand','category','fit','color','quality','perf'].forEach(function(k){
-      if (F[k]) { var lab = (k==='perf') ? 'Performance' : F[k]; bits.push('<span class="chip" data-clear="'+k+'" style="display:inline-block;background:#f1f1fb;color:#27267e;border-radius:20px;padding:4px 12px;font-size:13px;margin-left:8px;cursor:pointer">'+esc(lab)+' \u00d7</span>'); }
+    ['brand','category','fit','color','quality'].forEach(function(k){
+      if (F[k]) bits.push('<span class="chip" data-clear="'+k+'" style="display:inline-block;background:#f1f1fb;color:#27267e;border-radius:20px;padding:4px 12px;font-size:13px;margin-left:8px;cursor:pointer">'+esc(F[k])+' \u00d7</span>');
     });
     var el = document.getElementById('btActive');
     el.innerHTML = bits.join('');
@@ -172,8 +166,7 @@
              (el.getAttribute('data-cat')   && el.getAttribute('data-cat')   === F.category) ||
              (el.getAttribute('data-color') && el.getAttribute('data-color') === F.color) ||
              (el.getAttribute('data-fit')   && el.getAttribute('data-fit')   === F.fit) ||
-             (el.getAttribute('data-quality') && el.getAttribute('data-quality') === F.quality) ||
-             (el.getAttribute('data-perf') && el.getAttribute('data-perf') === F.perf);
+             (el.getAttribute('data-quality') && el.getAttribute('data-quality') === F.quality);
     }
     root.querySelectorAll('.fitem').forEach(function(el){ el.classList.toggle('active', !!on(el)); });
     root.querySelectorAll('.megai').forEach(function(el){ el.classList.toggle('on', !!on(el)); });
@@ -187,9 +180,8 @@
     if (F.category) q += '&category=' + encodeURIComponent(F.category);
     if (F.fit) q += '&fit=' + encodeURIComponent(F.fit);
     if (F.quality) q += '&quality=' + encodeURIComponent(F.quality);
-    if (F.perf) q += '&perf=1';
     if (F.color) q += '&color=' + encodeURIComponent(F.color);
-    if (!F.s && !F.brand && !F.category && !F.fit && !F.color && !F.quality && !F.perf) q += '&featured=1';
+    if (!F.s && !F.brand && !F.category && !F.fit && !F.color && !F.quality) q += '&featured=1';
     var grid = document.getElementById('btGrid');
     grid.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8a8aa0">Loading\u2026</div>';
     api(q).then(function(d){

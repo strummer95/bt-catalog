@@ -1,6 +1,6 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.13.0**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.14.0**.
 
-# BT Catalog — Project Handoff (current as of v0.13.0)
+# BT Catalog — Project Handoff (current as of v0.14.0)
 
 ## v0.12.0 — Quality filter (Good/Better/Best)
 - New `includes/tiers.php`: static style#→tier map extracted from the 7 SanMar Navigator guides (Tee, Polo, Sweatshirt, Outerwear, Wovens, Headwear, Bags). 647 styles (235 good / 208 better / 204 best). Edit the $good/$better/$best lists + bump version to change tiers.
@@ -19,6 +19,12 @@
 - New **perf** column (TINYINT, added via dbDelta on the version-gated init). Detected from **fabric/specs not name** by `bt_cat_is_performance($row)` in tiers.php (signals: moisture/wicking, dri-fit, dri-power, posicharge, sport-wick, racermesh, dry zone, performance, micropique, upf, coolmax, islandzone, fastdry, therma-fit, tech fleece, flat back mesh). Catches EG-PRO E152 ("Basic Training" poly interlock) and C2 Sport 5100 despite plain names.
 - Set on every import in `bt_cat_upsert()` (recomputed each time); backfilled by `bt_cat_apply_perf()`, which runs alongside `bt_cat_apply_tiers()` on the once-per-version admin_init hook.
 - REST: `perf=1` param (literal `perf = 1` WHERE); facets returns `perf` (count). Storefront: a **Features** group at the bottom of the sidebar with a single **Performance** toggle (mirrors the filter plumbing; friendly chip label). Intentionally NOT a category — stacks on top of any category so performance tees still live under T-Shirts. Note: Nike performance items DO show here (Nike is only excluded from tiers).
+
+## v0.14.0 — Performance is a Category, not its own group
+- Supersedes the v0.13.0 "Features" group (removed). The perf column + `bt_cat_is_performance()` detection + backfill all stay; only the surfacing changed.
+- Facets append **'Performance'** to the `categories` array when any perf rows exist (sorted in). It shows up in the Categories header dropdown + sidebar group like any other category (no new JS — the normal category render/bind handles it).
+- REST list special-cases `category === 'Performance'` -> `WHERE perf = 1` (skips bucket expansion). It's a **synthetic/overlapping** category: a performance tee still appears under T-Shirts AND under Performance; category is single-select so you can't combine the two (accepted tradeoff).
+- Removed the separate `perf` REST param / `&perf=1` plumbing and the storefront Features group.
 
 ## What this is
 A custom WordPress plugin, **BT Catalog**, on **boomerts.com** (Boomer T's Ink & Thread — family print shop). It ingests multiple suppliers (S&S Activewear, SanMar, EG-PRO) into one cache table and renders a BT-branded blank-apparel catalog with a quote flow (browse blanks → pick sizes → decoration → send to quote desk; no checkout). Retail = S&S cost × markup; cost is never shown to customers.
