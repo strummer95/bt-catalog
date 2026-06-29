@@ -105,8 +105,25 @@ function bt_cat_rest_list($req) {
         if ($ors) $where[] = '(' . implode(' OR ', $ors) . ')';
     }
     if ($fit !== '') {
-        $fc = bt_cat_fit_clause($fit);
-        if ($fc !== '') $where[] = $fc;   // static literals, no bound params
+        // Bound LIKE params (never literal % in the prepared SQL).
+        switch (bt_cat_fit_key($fit)) {
+            case 'women':
+                $where[] = "(category LIKE %s OR category LIKE %s)";
+                array_push($args, '%women%', '%ladies%');
+                break;
+            case 'girls':
+                $where[] = "(category LIKE %s)";
+                $args[] = '%girl%';
+                break;
+            case 'youth':
+                $where[] = "(category LIKE %s OR category LIKE %s OR category LIKE %s OR category LIKE %s)";
+                array_push($args, '%youth%', '%boys%', '%infant%', '%toddler%');
+                break;
+            case 'unisex': // none of the above
+                $where[] = "(category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s)";
+                array_push($args, '%women%', '%ladies%', '%girl%', '%youth%', '%boys%', '%infant%', '%toddler%');
+                break;
+        }
     }
 
     $wsql = implode(' AND ', $where);
@@ -151,14 +168,14 @@ function bt_cat_rest_list($req) {
     if ($cat === '' && $s === '')
     $typeCase =
         "CASE
-            WHEN LOWER(category) LIKE '%tee%' OR LOWER(category) LIKE '%t-shirt%' OR LOWER(category) LIKE '%tshirt%' THEN 0
-            WHEN LOWER(category) LIKE '%polo%' THEN 1
-            WHEN LOWER(category) LIKE '%tank%' THEN 2
-            WHEN LOWER(category) LIKE '%hoodie%' OR LOWER(category) LIKE '%fleece%' OR LOWER(category) LIKE '%sweatshirt%' OR LOWER(category) LIKE '%crew%' OR LOWER(category) LIKE '%1/4 zip%' OR LOWER(category) LIKE '%quarter zip%' OR LOWER(category) LIKE '%pullover%' OR LOWER(category) LIKE '%layer%' THEN 3
-            WHEN LOWER(category) LIKE '%short%' OR LOWER(category) LIKE '%pant%' OR LOWER(category) LIKE '%jogger%' OR LOWER(category) LIKE '%bottom%' OR LOWER(category) LIKE '%legging%' THEN 4
-            WHEN LOWER(category) LIKE '%jacket%' OR LOWER(category) LIKE '%outerwear%' OR LOWER(category) LIKE '%vest%' THEN 5
-            WHEN LOWER(category) LIKE '%cap%' OR LOWER(category) LIKE '%hat%' OR LOWER(category) LIKE '%headwear%' OR LOWER(category) LIKE '%beanie%' OR LOWER(category) LIKE '%bag%' OR LOWER(category) LIKE '%sock%' OR LOWER(category) LIKE '%accessor%' THEN 7
-            WHEN LOWER(category) LIKE '%non-medical%' OR LOWER(category) LIKE '%mask%' THEN 8
+            WHEN LOWER(category) LIKE '%%tee%%' OR LOWER(category) LIKE '%%t-shirt%%' OR LOWER(category) LIKE '%%tshirt%%' THEN 0
+            WHEN LOWER(category) LIKE '%%polo%%' THEN 1
+            WHEN LOWER(category) LIKE '%%tank%%' THEN 2
+            WHEN LOWER(category) LIKE '%%hoodie%%' OR LOWER(category) LIKE '%%fleece%%' OR LOWER(category) LIKE '%%sweatshirt%%' OR LOWER(category) LIKE '%%crew%%' OR LOWER(category) LIKE '%%1/4 zip%%' OR LOWER(category) LIKE '%%quarter zip%%' OR LOWER(category) LIKE '%%pullover%%' OR LOWER(category) LIKE '%%layer%%' THEN 3
+            WHEN LOWER(category) LIKE '%%short%%' OR LOWER(category) LIKE '%%pant%%' OR LOWER(category) LIKE '%%jogger%%' OR LOWER(category) LIKE '%%bottom%%' OR LOWER(category) LIKE '%%legging%%' THEN 4
+            WHEN LOWER(category) LIKE '%%jacket%%' OR LOWER(category) LIKE '%%outerwear%%' OR LOWER(category) LIKE '%%vest%%' THEN 5
+            WHEN LOWER(category) LIKE '%%cap%%' OR LOWER(category) LIKE '%%hat%%' OR LOWER(category) LIKE '%%headwear%%' OR LOWER(category) LIKE '%%beanie%%' OR LOWER(category) LIKE '%%bag%%' OR LOWER(category) LIKE '%%sock%%' OR LOWER(category) LIKE '%%accessor%%' THEN 7
+            WHEN LOWER(category) LIKE '%%non-medical%%' OR LOWER(category) LIKE '%%mask%%' THEN 8
             ELSE 6
         END ASC, ";
 

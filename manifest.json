@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.11.2",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.11.2.zip",
+  "version": "0.11.3",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.11.3.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fixed long brand names (e.g. Artisan Collection by Reprime) overflowing into the next column in the Brands menu — they now wrap neatly within their column."
+  "changelog": "Bug fix: filtered catalog views (e.g. a single brand) showed a count but 'No styles match'. The product-type sort had literal % LIKE patterns inside a prepared query, which broke the item fetch. Now escaped, and the Fit filter uses bound parameters. Includes the earlier speed fix and brand-name wrap."
 }
