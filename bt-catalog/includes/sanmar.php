@@ -215,17 +215,33 @@ function bt_cat_sanmar_media($style) {
         'mediaType' => 'Image', 'productId' => $style,
     ));
     if (!$r['ok']) return $r;
-    $out = array();
-    $items = bt_cat_sanmar_find_key($r['data'], array('MediaContentArray'));
-    // Walk the data for MediaContent entries (url + color).
-    $list = array();
+    $byColor = array();  // color => list of urls
     if (isset($r['data']['MediaContentArray']['MediaContent'])) $list = bt_cat_sanmar_list($r['data']['MediaContentArray']['MediaContent']);
+    else $list = array();
     foreach ($list as $m) {
         $url   = bt_cat_sanmar_find_key($m, array('url'));
         $color = bt_cat_sanmar_find_key($m, array('color', 'colorName'));
-        if ($url && $color && !isset($out[$color])) $out[$color] = $url;
+        if ($url && $color) { if (!isset($byColor[$color])) $byColor[$color] = array(); $byColor[$color][] = $url; }
+    }
+    $out = array();
+    foreach ($byColor as $color => $urls) {
+        $out[$color] = bt_cat_sanmar_best_image($urls);
     }
     return array('ok' => true, 'images' => $out, 'count' => count($list), 'request' => $r['request']);
+}
+
+/** Prefer a front-facing image: model_front > flat_front > *front* > first. */
+function bt_cat_sanmar_best_image($urls) {
+    $rank = function ($u) {
+        $u = strtolower($u);
+        if (strpos($u, 'model_front') !== false) return 0;
+        if (strpos($u, 'flat_front') !== false)  return 1;
+        if (strpos($u, 'front') !== false)        return 2;
+        if (strpos($u, 'back') !== false)          return 9;
+        return 5;
+    };
+    usort($urls, function ($a, $b) use ($rank) { return $rank($a) - $rank($b); });
+    return $urls[0];
 }
 
 /** getConfigurationAndPricing -> lowest piece (your) cost. Tries wsVersion 1.0.0, Customer pricing. */
@@ -317,6 +333,39 @@ function bt_cat_sanmar_page() {
     if (isset($_POST['bt_cat_full_sanmar'])) {
         check_admin_referer('bt_cat_sanmar');
         $full = bt_cat_sanmar_assemble(sanitize_text_field(wp_unslash($_POST['sanmar_test_style'] ?? 'PC61')) ?: 'PC61');
+    }
+
+    $discover = null;
+    if (isset($_POST['bt_cat_save_denylist'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        update_option('bt_cat_sanmar_denylist', sanitize_textarea_field(wp_unslash($_POST['denylist'] ?? '')));
+        echo '<div class="notice notice-success is-dismissible"><p>Skip-brand list saved.</p></div>';
+    }
+    if (isset($_POST['bt_cat_discover_sanmar'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        $discover = bt_cat_sanmar_discover();
+        if (!empty($discover['ok'])) {
+            update_option('bt_cat_sanmar_queue', wp_json_encode($discover['ids']), false);
+            update_option('bt_cat_sanmar_pos', 0, false);
+            update_option('bt_cat_sanmar_stats', wp_json_encode(array('total' => $discover['count'], 'processed' => 0, 'imported' => 0, 'skipped' => 0, 'errors' => 0, 'running' => false)), false);
+        }
+    }
+    if (isset($_POST['bt_cat_import_start'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        if (!wp_next_scheduled('bt_cat_sanmar_tick')) wp_schedule_single_event(time() + 5, 'bt_cat_sanmar_tick');
+        bt_cat_sanmar_run_batch(15);
+        echo '<div class="notice notice-success is-dismissible"><p>Import started — it continues in the background. Refresh to watch progress.</p></div>';
+    }
+    if (isset($_POST['bt_cat_import_batch'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        bt_cat_sanmar_run_batch(25);
+    }
+    if (isset($_POST['bt_cat_import_stop'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        $ts = wp_next_scheduled('bt_cat_sanmar_tick');
+        if ($ts) wp_unschedule_event($ts, 'bt_cat_sanmar_tick');
+        $st = bt_cat_sanmar_stats(); $st['running'] = false; update_option('bt_cat_sanmar_stats', wp_json_encode($st), false);
+        echo '<div class="notice notice-warning is-dismissible"><p>Import paused.</p></div>';
     }
 
     $creds = bt_cat_sanmar_creds();
@@ -412,7 +461,138 @@ function bt_cat_sanmar_page() {
             </div>
         <?php endif; ?>
 
-        <p class="description" style="max-width:760px;margin-top:16px">Once this test returns real product data, the next step is the importer: discover SanMar styles, keep only the brands S&amp;S doesn't carry, pull product details + images + your cost, and store them alongside S&amp;S (the storefront already supports a second supplier).</p>
+        <hr style="margin:28px 0;max-width:900px">
+        <h2>Import SanMar catalog</h2>
+        <?php
+            $st    = bt_cat_sanmar_stats();
+            $queued = (int) (isset($st['total']) ? $st['total'] : 0);
+            $proc   = (int) (isset($st['processed']) ? $st['processed'] : 0);
+            $running = !empty($st['running']) || (bool) wp_next_scheduled('bt_cat_sanmar_tick');
+            $deny_raw = (string) get_option('bt_cat_sanmar_denylist', '');
+            if (trim($deny_raw) === '') $deny_raw = "Gildan\nHanes\nJerzees\nFruit of the Loom\nBella+Canvas\nNext Level\nComfort Colors\nChampion\nAmerican Apparel\nAnvil\nNew Era\nGildan Hammer";
+        ?>
+        <form method="post" style="max-width:900px">
+            <?php wp_nonce_field('bt_cat_sanmar_import'); ?>
+            <p class="description"><strong>Step 1.</strong> Brands to <strong>skip</strong> (the ones S&amp;S already carries) — one per line. Everything else (SanMar's exclusive lines) gets imported.</p>
+            <textarea name="denylist" rows="6" class="large-text code"><?php echo esc_textarea($deny_raw); ?></textarea>
+            <p><button type="submit" name="bt_cat_save_denylist" value="1" class="button">Save skip list</button></p>
+
+            <p class="description" style="margin-top:18px"><strong>Step 2.</strong> Find every SanMar style, then run the import (it works through them in the background, ~25/min, pulling product + images + your cost and skipping the brands above).</p>
+            <p>
+                <button type="submit" name="bt_cat_discover_sanmar" value="1" class="button">1) Discover styles</button>
+                &nbsp;<button type="submit" name="bt_cat_import_start" value="1" class="button button-primary" <?php echo $queued ? '' : 'disabled'; ?>>2) Start import</button>
+                &nbsp;<button type="submit" name="bt_cat_import_batch" value="1" class="button" <?php echo $queued ? '' : 'disabled'; ?>>Run 25 now</button>
+                <?php if ($running): ?>&nbsp;<button type="submit" name="bt_cat_import_stop" value="1" class="button">Pause</button><?php endif; ?>
+            </p>
+
+            <?php if ($discover !== null): ?>
+                <?php if (!empty($discover['ok'])): ?>
+                    <div class="notice notice-success inline"><p>Found <strong><?php echo (int) $discover['count']; ?></strong> SanMar styles. Click <em>Start import</em>.</p></div>
+                <?php else: ?>
+                    <div class="notice notice-error inline"><p>Discovery failed: <?php echo esc_html($discover['error'] ?? ''); ?></p>
+                        <?php if (!empty($discover['request'])): ?><details><summary style="cursor:pointer">Request sent</summary><textarea readonly rows="6" class="large-text code" style="font-size:11px"><?php echo esc_textarea($discover['request']); ?></textarea></details><?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
+            <?php if ($queued): ?>
+                <table class="widefat striped" style="max-width:520px;margin-top:10px">
+                    <tr><td style="width:160px"><strong>Status</strong></td><td><?php echo $running ? '<span style="color:#1a7f37">running…</span>' : ($proc >= $queued ? '<span style="color:#1a7f37">complete</span>' : 'paused'); ?></td></tr>
+                    <tr><td><strong>Progress</strong></td><td><?php echo (int) $proc; ?> of <?php echo (int) $queued; ?> styles checked</td></tr>
+                    <tr><td><strong>Imported</strong></td><td><?php echo (int) (isset($st['imported']) ? $st['imported'] : 0); ?></td></tr>
+                    <tr><td><strong>Skipped (S&amp;S brands)</strong></td><td><?php echo (int) (isset($st['skipped']) ? $st['skipped'] : 0); ?></td></tr>
+                    <tr><td><strong>Errors</strong></td><td><?php echo (int) (isset($st['errors']) ? $st['errors'] : 0); ?><?php echo !empty($st['last_error']) ? ' <span style="font-size:11px;color:#888">(last: ' . esc_html($st['last_error']) . ')</span>' : ''; ?></td></tr>
+                </table>
+                <?php if ($running): ?><p class="description">Refresh this page to update progress.</p><?php endif; ?>
+            <?php endif; ?>
+        </form>
     </div>
     <?php
 }
+
+/* ===================== BULK IMPORTER ===================== */
+
+/** Discover all sellable SanMar style IDs (getProductSellable). */
+function bt_cat_sanmar_discover() {
+    $cr = bt_cat_sanmar_creds();
+    $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRODUCT, 'getProductSellable', array(
+        'wsVersion' => '1.0.0', 'id' => $cr['id'], 'password' => $cr['pw'],
+        'localizationCountry' => 'US', 'localizationLanguage' => 'en', 'productId' => '',
+    ));
+    if (!$r['ok']) return $r;
+    $ids = array();
+    if (isset($r['data']['ProductSellableArray']['ProductSellable'])) {
+        foreach (bt_cat_sanmar_list($r['data']['ProductSellableArray']['ProductSellable']) as $ps) {
+            $pid = bt_cat_sanmar_find_key($ps, array('productId'));
+            if ($pid) $ids[$pid] = true;
+        }
+    }
+    return array('ok' => true, 'ids' => array_keys($ids), 'count' => count($ids), 'request' => $r['request']);
+}
+
+/** Brands S&S already carries — SanMar styles in these are skipped (editable). */
+function bt_cat_sanmar_denylist() {
+    $raw = (string) get_option('bt_cat_sanmar_denylist', '');
+    if (trim($raw) === '') $raw = "Gildan\nHanes\nJerzees\nFruit of the Loom\nBella+Canvas\nNext Level\nComfort Colors\nChampion\nAmerican Apparel\nAnvil\nNew Era\nGildan Hammer";
+    $out = array();
+    foreach (preg_split('/[\r\n,]+/', $raw) as $b) { $b = trim($b); if ($b !== '') $out[] = bt_cat_brand_norm($b); }
+    return $out;
+}
+function bt_cat_sanmar_is_shared($brand) {
+    return in_array(bt_cat_brand_norm($brand), bt_cat_sanmar_denylist(), true);
+}
+
+/** Import one style: assemble, skip if S&S carries the brand, else upsert. */
+function bt_cat_sanmar_import_one($style) {
+    $a = bt_cat_sanmar_assemble($style);
+    if (empty($a['ok'])) return array('status' => 'error', 'msg' => isset($a['error']) ? $a['error'] : 'assemble failed');
+    if (bt_cat_sanmar_is_shared($a['brand'])) return array('status' => 'skipped', 'brand' => $a['brand']);
+    $colors = array();
+    foreach ($a['colors'] as $c) $colors[] = array('name' => $c['name'], 'hex' => '', 'img' => $c['img'], 'swatch' => '');
+    bt_cat_upsert(array(
+        'supplier' => 'sanmar', 'supplier_style_id' => $style, 'style_no' => $style,
+        'brand' => $a['brand'], 'name' => $a['name'], 'category' => $a['category'], 'description' => $a['desc'],
+        'specs' => wp_json_encode(array()), 'colors' => wp_json_encode($colors), 'sizes' => implode(',', $a['sizes']),
+        'cost' => $a['cost'], 'sale_cost' => 0, 'retail' => function_exists('bt_cat_autoprice') ? bt_cat_autoprice($a['cost']) : round($a['cost'] * 2, 2),
+        'detail_done' => 1, 'active' => 1,
+    ));
+    return array('status' => 'imported', 'brand' => $a['brand'], 'colors' => count($colors), 'cost' => $a['cost']);
+}
+
+function bt_cat_sanmar_stats() {
+    $s = json_decode((string) get_option('bt_cat_sanmar_stats', '{}'), true);
+    return is_array($s) ? $s : array();
+}
+
+/** Process the next $n styles from the discovered queue. */
+function bt_cat_sanmar_run_batch($n = 20) {
+    $queue = json_decode((string) get_option('bt_cat_sanmar_queue', '[]'), true);
+    if (!is_array($queue)) $queue = array();
+    $pos   = (int) get_option('bt_cat_sanmar_pos', 0);
+    $stats = bt_cat_sanmar_stats();
+    $total = count($queue);
+    $done  = 0;
+    while ($done < $n && $pos < $total) {
+        $style = $queue[$pos];
+        $pos++; $done++;
+        $r = bt_cat_sanmar_import_one($style);
+        $stats['processed'] = (isset($stats['processed']) ? $stats['processed'] : 0) + 1;
+        if ($r['status'] === 'imported')      $stats['imported'] = (isset($stats['imported']) ? $stats['imported'] : 0) + 1;
+        elseif ($r['status'] === 'skipped')   $stats['skipped']  = (isset($stats['skipped']) ? $stats['skipped'] : 0) + 1;
+        else { $stats['errors'] = (isset($stats['errors']) ? $stats['errors'] : 0) + 1; $stats['last_error'] = $style . ': ' . (isset($r['msg']) ? $r['msg'] : ''); }
+        usleep(120000); // gentle throttle (~8/sec max of 3-call assemblies)
+    }
+    update_option('bt_cat_sanmar_pos', $pos, false);
+    $stats['total']   = $total;
+    $stats['running'] = ($pos < $total);
+    update_option('bt_cat_sanmar_stats', wp_json_encode($stats), false);
+    return $stats;
+}
+
+/** Background cron tick — keeps the import going until the queue is drained. */
+add_action('bt_cat_sanmar_tick', function () {
+    $stats = bt_cat_sanmar_run_batch(25);
+    if (!empty($stats['running']) && !wp_next_scheduled('bt_cat_sanmar_tick')) {
+        wp_schedule_single_event(time() + 60, 'bt_cat_sanmar_tick');
+    }
+});
