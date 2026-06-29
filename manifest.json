@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.10.4",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.10.4.zip",
+  "version": "0.11.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.11.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "EG-PRO color swatches now show a real color: their 34 named colors are mapped to hex values so the chips fill in (re-run EG-PRO import/refresh to apply). Catalog lists now sort by product-type popularity too — t-shirts first, then polos/tanks/fleece/bottoms, with jackets and masks/accessories last — so browsing a brand leads with shirts."
+  "changelog": "Categories consolidated to garment type only (Men's/Women's/Youth/Girl's all collapse into T-Shirts, Polos, Hoodies & Fleece, Bottoms, etc.), and a new Fit filter (Unisex/Men's, Women's, Youth, Girls) was added to the header and sidebar. Works across all suppliers; no re-import needed."
 }

@@ -49,6 +49,7 @@ function bt_cat_rest_list($req) {
     $s     = sanitize_text_field((string) $req->get_param('s'));
     $brand = sanitize_text_field((string) $req->get_param('brand'));
     $cat   = sanitize_text_field((string) $req->get_param('category'));
+    $fit   = sanitize_text_field((string) $req->get_param('fit'));
     $color = sanitize_text_field((string) $req->get_param('color'));
     $page  = max(1, (int) $req->get_param('page'));
     $per   = min(48, max(1, (int) ($req->get_param('per') ?: 24)));
@@ -56,7 +57,7 @@ function bt_cat_rest_list($req) {
 
     // Featured: default page (no search/filter) leads with the configured styles,
     // brand-aware so "Gildan 5000" doesn't collide with another brand's 5000.
-    if ($s === '' && $brand === '' && $cat === '' && $color === '') {
+    if ($s === '' && $brand === '' && $cat === '' && $color === '' && $fit === '') {
         $resolved = bt_cat_featured_resolve();
         if (!empty($resolved)) {
             $total    = count($resolved);
@@ -102,6 +103,10 @@ function bt_cat_rest_list($req) {
         $ors = array();
         foreach ($terms as $term) { $ors[] = "colors LIKE %s"; $args[] = '%' . $wpdb->esc_like($term) . '%'; }
         if ($ors) $where[] = '(' . implode(' OR ', $ors) . ')';
+    }
+    if ($fit !== '') {
+        $fc = bt_cat_fit_clause($fit);
+        if ($fc !== '') $where[] = $fc;   // static literals, no bound params
     }
 
     $wsql = implode(' AND ', $where);
@@ -237,23 +242,81 @@ function bt_cat_rest_facets() {
     foreach ($cats as $c) { $b = bt_cat_norm_category($c); if ($b !== '') $seen[$b] = true; }
     $cats = array_keys($seen);
     sort($cats);
-    return array('brands' => $brands, 'categories' => $cats);
+
+    // Fit facet — include only fits that actually have products.
+    $fits = array();
+    foreach (bt_cat_fit_labels() as $label) {
+        $clause = bt_cat_fit_clause($label);
+        if ($clause === '') continue;
+        $n = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t WHERE detail_done=1 AND active=1 AND $clause");
+        if ($n > 0) $fits[] = $label;
+    }
+    return array('brands' => $brands, 'categories' => $cats, 'fits' => $fits);
 }
 
 /* Category buckets: collapse S&S baseCategory variants into clean display labels.
    First match wins; substrings are case-insensitive. Used by both facets (collapse)
    and the list filter (expand a bucket back to all matching raw categories). */
 function bt_cat_cat_buckets() {
+    // First match wins; substrings are lowercased and matched against the raw
+    // supplier category. Gender/age is intentionally ignored here (exposed
+    // separately as the "Fit" filter), so Men's/Women's/Youth/Girl's
+    // "Performance Tee" all collapse to "T-Shirts". Hoodies/sweatshirts are
+    // checked before T-Shirts so a "Crewneck Sweatshirt" doesn't land in tees.
     return array(
-        'T-Shirts' => array('t-shirt', 'tshirt', 't shirt', 'tee'),
-        'Fleece'   => array('fleece'),
+        'Quarter-Zips & Layering' => array('1/4 zip', '1/4-zip', 'quarter zip', 'quarter-zip', 'layering'),
+        'Polos'                   => array('polo'),
+        'Tanks'                   => array('tank', 'racerback'),
+        'Hoodies & Fleece'        => array('hoodie', 'sweatshirt', 'fleece', 'pullover'),
+        'T-Shirts'                => array('t-shirt', 'tshirt', 't shirt', 'tee', 'crew neck', 'crewneck'),
+        'Woven Shirts'            => array('woven', 'wovens', 'dress shirt', 'button-down', 'workwear'),
+        'Bottoms'                 => array('short', 'pant', 'jogger', 'legging', 'bottom', 'capri'),
+        'Outerwear'               => array('jacket', 'outerwear', 'vest', 'coat', 'windbreaker', 'parka'),
+        'Headwear'                => array('cap', 'hat', 'headwear', 'beanie', 'visor', 'bucket'),
+        'Bags'                    => array('bag', 'backpack', 'tote', 'duffel', 'duffle'),
+        'Personal Protection'     => array('non-medical', 'personal protection', 'protection', 'mask', 'face cover'),
+        'Accessories'             => array('accessor', 'sock', 'scarf', 'towel', 'lanyard', 'apron', 'blanket', 'glove'),
+        'Activewear'              => array('activewear'),
     );
+}
+
+/* ---- Fit (Unisex/Men's, Women's, Youth, Girls) ----
+   Derived from the raw category so it needs no schema change. Lets us strip
+   gender/age out of the category list above and offer it as its own filter. */
+function bt_cat_fit_labels() {
+    return array("Unisex / Men's", "Women's", "Youth", "Girls");
+}
+function bt_cat_fit_key($fit) {
+    $f = strtolower((string) $fit);
+    if (strpos($f, 'women') !== false || strpos($f, 'ladies') !== false) return 'women';
+    if (strpos($f, 'girl') !== false) return 'girls';
+    if (strpos($f, 'youth') !== false || strpos($f, 'boy') !== false) return 'youth';
+    if (strpos($f, 'unisex') !== false || strpos($f, 'men') !== false) return 'unisex';
+    return '';
+}
+/** SQL condition (static literals — safe to inline) for a fit selection. */
+function bt_cat_fit_clause($fit) {
+    $women = "(category LIKE '%women%' OR category LIKE '%ladies%')";
+    $girls = "(category LIKE '%girl%')";
+    $youth = "(category LIKE '%youth%' OR category LIKE '%boys%' OR category LIKE '%infant%' OR category LIKE '%toddler%')";
+    switch (bt_cat_fit_key($fit)) {
+        case 'women':  return $women;
+        case 'girls':  return $girls;
+        case 'youth':  return $youth;
+        case 'unisex': return "(NOT $women AND NOT $girls AND NOT $youth)"; // unisex/men's = none of the above
+    }
+    return '';
 }
 function bt_cat_norm_category($raw) {
     $low = strtolower((string) $raw);
     foreach (bt_cat_cat_buckets() as $label => $subs) {
         foreach ($subs as $s) { if (strpos($low, $s) !== false) return $label; }
     }
+    // Bare gender/age categories (no garment type) are now covered by the Fit
+    // filter — drop them from the category list so it stays garment-type only.
+    $stripped = preg_replace('/\b(men\'?s|women\'?s|ladies|unisex|youth|girl\'?s|boy\'?s|infant|toddler|adult|kids?|juvenile|performance|lightweight)\b/', '', $low);
+    $stripped = preg_replace('/[^a-z]/', '', $stripped);   // drop spaces, &, punctuation
+    if ($stripped === '') return '';
     return $raw;
 }
 
