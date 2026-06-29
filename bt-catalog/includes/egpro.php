@@ -305,6 +305,7 @@ function bt_cat_egpro_import_all() {
         if (count($r['products']) < BT_CAT_EGPRO_PER) break;  // last (partial) page
     }
 
+    if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
     return array('ok' => true, 'imported' => $imported, 'skipped' => $skipped, 'pages' => $page);
 }
 
@@ -352,6 +353,7 @@ function bt_cat_egpro_page() {
     if (isset($_POST['bt_cat_egpro_clear'])) {
         check_admin_referer('bt_cat_egpro');
         $n = (int) $wpdb->query($wpdb->prepare("DELETE FROM $t WHERE supplier=%s", 'egpro'));
+        if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
         echo '<div class="notice notice-warning is-dismissible"><p>Removed ' . $n . ' EG-PRO item(s).</p></div>';
     }
 

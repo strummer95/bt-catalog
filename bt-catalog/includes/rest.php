@@ -144,8 +144,11 @@ function bt_cat_rest_list($req) {
     }
 
     // Type "popularity" order: shirts first, accessories/masks last. Keyword
-    // match on the category so it works across suppliers (applies to every
-    // filtered/searched/browsed list; pinned Popular styles still win above it).
+    // match on the category so it works across suppliers. Skipped when a
+    // category filter is active (results are already one type) or when searching
+    // (relevance leads) — avoids a heavy CASE sort on large result sets.
+    $typeCase = '';
+    if ($cat === '' && $s === '')
     $typeCase =
         "CASE
             WHEN LOWER(category) LIKE '%tee%' OR LOWER(category) LIKE '%t-shirt%' OR LOWER(category) LIKE '%tshirt%' THEN 0
@@ -233,25 +236,44 @@ function bt_cat_rest_item($req) {
     );
 }
 
+/** Fit key for a raw category string (PHP mirror of bt_cat_fit_clause). */
+function bt_cat_fit_of($category) {
+    $c = strtolower((string) $category);
+    if (strpos($c, 'women') !== false || strpos($c, 'ladies') !== false) return 'women';
+    if (strpos($c, 'girl') !== false) return 'girls';
+    if (strpos($c, 'youth') !== false || strpos($c, 'boy') !== false || strpos($c, 'infant') !== false || strpos($c, 'toddler') !== false) return 'youth';
+    return 'unisex';
+}
+
+/** Drop the cached facet payload (call after any catalog write). */
+function bt_cat_facets_flush() { delete_transient('bt_cat_facets'); }
+
 function bt_cat_rest_facets() {
+    $cached = get_transient('bt_cat_facets');
+    if (is_array($cached)) return $cached;
+
     global $wpdb;
     $t = bt_cat_table();
-    $brands = $wpdb->get_col("SELECT DISTINCT brand FROM $t WHERE detail_done=1 AND brand<>'' ORDER BY brand ASC");
-    $cats   = $wpdb->get_col("SELECT DISTINCT category FROM $t WHERE detail_done=1 AND category<>'' ORDER BY category ASC");
+    $brands  = $wpdb->get_col("SELECT DISTINCT brand FROM $t WHERE detail_done=1 AND active=1 AND brand<>'' ORDER BY brand ASC");
+    $rawCats = $wpdb->get_col("SELECT DISTINCT category FROM $t WHERE detail_done=1 AND active=1 AND category<>''");
+
+    // Categories -> consolidated buckets.
     $seen = array();
-    foreach ($cats as $c) { $b = bt_cat_norm_category($c); if ($b !== '') $seen[$b] = true; }
+    foreach ($rawCats as $c) { $b = bt_cat_norm_category($c); if ($b !== '') $seen[$b] = true; }
     $cats = array_keys($seen);
     sort($cats);
 
-    // Fit facet — include only fits that actually have products.
+    // Fits derived from the SAME distinct categories — no extra queries.
+    $fitSeen = array();
+    foreach ($rawCats as $c) { $fitSeen[bt_cat_fit_of($c)] = true; }
     $fits = array();
     foreach (bt_cat_fit_labels() as $label) {
-        $clause = bt_cat_fit_clause($label);
-        if ($clause === '') continue;
-        $n = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t WHERE detail_done=1 AND active=1 AND $clause");
-        if ($n > 0) $fits[] = $label;
+        if (!empty($fitSeen[bt_cat_fit_key($label)])) $fits[] = $label;
     }
-    return array('brands' => $brands, 'categories' => $cats, 'fits' => $fits);
+
+    $out = array('brands' => $brands, 'categories' => $cats, 'fits' => $fits);
+    set_transient('bt_cat_facets', $out, 10 * MINUTE_IN_SECONDS);
+    return $out;
 }
 
 /* Category buckets: collapse S&S baseCategory variants into clean display labels.

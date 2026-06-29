@@ -54,6 +54,7 @@ function bt_cat_ss_page() {
         check_admin_referer('bt_cat_pull');
         global $wpdb;
         $wpdb->query('TRUNCATE TABLE ' . bt_cat_table());
+        if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
         echo '<div class="notice notice-warning is-dismissible"><p>Catalog cleared.</p></div>';
     }
 
