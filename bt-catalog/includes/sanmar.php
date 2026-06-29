@@ -571,6 +571,43 @@ function bt_cat_sanmar_page() {
                 <?php if ($running): ?><p class="description">Refresh this page to update progress.</p><?php endif; ?>
             <?php endif; ?>
         </form>
+
+        <?php
+            global $wpdb;
+            $t = bt_cat_table();
+            $sm_total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $t WHERE supplier=%s", 'sanmar'));
+            $sm_rows  = $wpdb->get_results($wpdb->prepare("SELECT supplier_style_id, brand, name, category, cost, retail, colors, sizes FROM $t WHERE supplier=%s ORDER BY updated_at DESC LIMIT 30", 'sanmar'), ARRAY_A);
+        ?>
+        <hr style="margin:28px 0;max-width:900px">
+        <h2>SanMar items in your catalog (<?php echo (int) $sm_total; ?>)</h2>
+        <?php if (!$sm_rows): ?>
+            <p class="description">None yet — run an import above.</p>
+        <?php else: ?>
+            <p class="description">Most recent 30. This is what shoppers see on the storefront. Spot-check a few costs and images.</p>
+            <table class="widefat striped" style="max-width:900px">
+                <thead><tr><th>Style</th><th>Brand</th><th>Name</th><th>Category</th><th>Colors</th><th>Sizes</th><th>Your cost</th><th>Retail</th><th>Image</th></tr></thead>
+                <tbody>
+                <?php foreach ($sm_rows as $row):
+                    $cols = json_decode((string) $row['colors'], true); if (!is_array($cols)) $cols = array();
+                    $img = '';
+                    foreach ($cols as $c) { if (!empty($c['img'])) { $img = $c['img']; break; } }
+                    $nsz = $row['sizes'] !== '' ? count(explode(',', $row['sizes'])) : 0;
+                ?>
+                    <tr>
+                        <td><code><?php echo esc_html($row['supplier_style_id']); ?></code></td>
+                        <td><?php echo esc_html($row['brand']); ?></td>
+                        <td style="max-width:220px"><?php echo esc_html($row['name']); ?></td>
+                        <td><?php echo esc_html($row['category']); ?></td>
+                        <td><?php echo (int) count($cols); ?></td>
+                        <td><?php echo (int) $nsz; ?></td>
+                        <td>$<?php echo esc_html(number_format((float) $row['cost'], 2)); ?></td>
+                        <td>$<?php echo esc_html(number_format((float) $row['retail'], 2)); ?></td>
+                        <td><?php echo $img ? '<img src="' . esc_url($img) . '" style="height:40px;border:1px solid #ddd;border-radius:4px">' : '—'; ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
     </div>
     <?php
 }

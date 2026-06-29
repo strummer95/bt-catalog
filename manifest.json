@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.8.2",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.2.zip",
+  "version": "0.8.3",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.8.3.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "SanMar import is faster (checks brand before pulling images/pricing, so skipped S&S-overlap brands cost only one call) and now shows a live brand breakdown — what's coming in vs what's skipped — so you can tune the skip list."
+  "changelog": "Added a 'SanMar items in your catalog' table on the SanMar page so you can verify exactly what got imported — brand, style, cost, retail, colors, and a thumbnail — without leaving the admin."
 }
