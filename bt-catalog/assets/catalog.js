@@ -104,10 +104,17 @@
   function loadFacets(){
     api('catalog/facets').then(function(f){
       var b = (f && f.brands) || [], c = (f && f.categories) || [], fits = (f && f.fits) || [], quals = (f && f.qualities) || [];
-      document.getElementById('mBrands').innerHTML =
-        '<div class="mega"><div class="megacol megabrands">' +
-        b.map(function(x){ return '<div class="megai" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
-        '</div></div>';
+      var bcols = (function(){
+        var n = b.length, ncol = window.innerWidth < 600 ? 2 : (window.innerWidth < 900 ? 3 : 5);
+        var per = Math.ceil(n / ncol) || 1, out = '';
+        for (var ci = 0; ci < ncol; ci++) {
+          var slice = b.slice(ci * per, (ci + 1) * per);
+          if (!slice.length) continue;
+          out += '<div class="brandcol">' + slice.map(function(x){ return '<div class="megai" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') + '</div>';
+        }
+        return out;
+      })();
+      document.getElementById('mBrands').innerHTML = '<div class="mega megabrands">' + bcols + '</div>';
       document.getElementById('mCats').innerHTML =
         '<div class="mega"><div class="megacol">' +
         c.map(function(x){ return '<div class="megai" data-cat="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
