@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.14.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.14.0.zip",
+  "version": "0.14.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.14.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Performance now lives in the Categories list (header dropdown + sidebar) instead of its own group. It's still detected by fabric, so styles like EG-PRO E152 and C2 Sport 5100 are included. Performance items also still appear under their normal category (T-Shirts, Polos, etc.)."
+  "changelog": "Renamed the \"Personal Protection\" category to \"Safety Gear.\""
 }

@@ -334,7 +334,7 @@ function bt_cat_cat_buckets() {
         'Outerwear'               => array('jacket', 'outerwear', 'vest', 'coat', 'windbreaker', 'parka'),
         'Headwear'                => array('cap', 'hat', 'headwear', 'beanie', 'visor', 'bucket'),
         'Bags'                    => array('bag', 'backpack', 'tote', 'duffel', 'duffle'),
-        'Personal Protection'     => array('non-medical', 'personal protection', 'protection', 'mask', 'face cover'),
+        'Safety Gear'             => array('non-medical', 'personal protection', 'protection', 'mask', 'face cover'),
         'Accessories'             => array('accessor', 'sock', 'scarf', 'towel', 'lanyard', 'apron', 'blanket', 'glove'),
         'Activewear'              => array('activewear'),
     );
