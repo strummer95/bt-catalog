@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.21.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.21.1.zip",
+  "version": "0.21.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.21.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Probe results now have an 'Import this style now' button \u2014 one click writes the live values straight into the catalog. Import textarea no longer pre-filled with example styles (that footgun silently imported Gildans instead of what you probed). Plugin updates no longer restart an in-progress background refresh from the beginning."
+  "changelog": "Fix: size upcharges (2XL+) were surfacing as fake price ranges on cards and per-color prices. Every color now shows the single standard style price; only a genuine sale deviates, downward. Ranges appear only when a sale exists (sale price - regular price, in red with the Sale badge)."
 }

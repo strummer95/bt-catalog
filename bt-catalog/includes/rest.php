@@ -244,17 +244,16 @@ function bt_cat_rest_colors_out($r, $cols, $pp) {
         $cost = isset($c['cost']) ? (float) $c['cost'] : 0;
         $sale = isset($c['sale']) ? (float) $c['sale'] : 0;
         unset($c['cost'], $c['sale']);
-        if ($ov) {
-            $c['price'] = $pp['price']; $c['was'] = null;
-        } elseif ($cost <= 0) {
-            $c['price'] = $pp['price']; $c['was'] = $pp['was'];   // legacy row fallback
-        } else {
-            $reg = bt_cat_autoprice($cost);
-            $c['price'] = $reg; $c['was'] = null;
-            if ($sale > 0 && $sale < $cost) {
-                $sp = bt_cat_autoprice($sale);
-                if ($sp < $reg) { $c['price'] = $sp; $c['was'] = $reg; }
-            }
+        // Standard price = the style's single base retail for every color —
+        // per-color supplier costs vary by which SIZE happened to be read
+        // (2XL+ upcharges), and that must never surface as a price range.
+        // Only a genuine sale makes a color deviate, and only downward.
+        $styleReg = $ov ? $pp['price'] : bt_cat_autoprice((float) $r['cost']);
+        if ($styleReg <= 0) $styleReg = $pp['price'];
+        $c['price'] = $styleReg; $c['was'] = null;
+        if (!$ov && $sale > 0 && ($cost <= 0 || $sale < $cost)) {
+            $sp = bt_cat_autoprice($sale);
+            if ($sp > 0 && $sp < $styleReg) { $c['price'] = $sp; $c['was'] = $styleReg; }
         }
         $out[] = $c;
     }
@@ -270,22 +269,20 @@ function bt_cat_rest_colors_out($r, $cols, $pp) {
  */
 function bt_cat_price_range($r, $cols, $pp) {
     $ov = isset($r['retail_override']) && $r['retail_override'] !== null && (float) $r['retail_override'] > 0;
-    $min = null; $max = null; $sale = false;
-    if (!$ov)
-
+    $reg = $ov ? $pp['price'] : bt_cat_autoprice((float) $r['cost']);
+    if ($reg <= 0) $reg = $pp['price'];
+    $min = $reg; $max = $reg; $sale = false;
+    if (!$ov) {
         foreach ((array) $cols as $c) {
             $cost = isset($c['cost']) ? (float) $c['cost'] : 0;
-            if ($cost <= 0) continue;
-            $eff = bt_cat_autoprice($cost);
-            $cs  = isset($c['sale']) ? (float) $c['sale'] : 0;
-            if ($cs > 0 && $cs < $cost) {
+            $cs   = isset($c['sale']) ? (float) $c['sale'] : 0;
+            if ($cs > 0 && ($cost <= 0 || $cs < $cost)) {
                 $sp = bt_cat_autoprice($cs);
-                if ($sp < $eff) { $eff = $sp; $sale = true; }
+                if ($sp > 0 && $sp < $min) { $min = $sp; $sale = true; }
             }
-            if ($min === null || $eff < $min) $min = $eff;
-            if ($max === null || $eff > $max) $max = $eff;
         }
-    if ($min === null) { $min = $max = $pp['price']; $sale = ($pp['was'] !== null); }
+        if (!$sale && $pp['was'] !== null && $pp['price'] < $min) { $min = $pp['price']; $sale = true; }
+    }
     return array('pmin' => $min, 'pmax' => $max, 'sale' => $sale);
 }
 
