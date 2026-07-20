@@ -24,3 +24,17 @@ function bt_cat_shortcode($atts) {
 
     return '<div id="btcat-root"><div style="padding:40px;text-align:center;color:#8a8aa0;font-family:sans-serif">Loading catalog\u2026</div></div>';
 }
+
+/* Legacy-link safety net: earlier catalog URLs used ?s= / ?page=, which are
+   WordPress-reserved query vars — a full page load of /catalog/?s=... runs a
+   site search and 404s. Redirect those old links to the new ?q= / ?pg= form. */
+add_action('template_redirect', function () {
+    $uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+    if (strpos($uri, '/catalog') === false) return;
+    if (!isset($_GET['s']) && !isset($_GET['page'])) return;
+    $qs = $_GET;
+    if (isset($qs['s']))    { $qs['q']  = $qs['s'];    unset($qs['s']); }
+    if (isset($qs['page'])) { $qs['pg'] = $qs['page']; unset($qs['page']); }
+    wp_safe_redirect('/catalog/?' . http_build_query($qs), 301);
+    exit;
+});

@@ -12,30 +12,34 @@
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
-  function syncURL(){
+  // NOTE: 'q' and 'pg' on purpose — 's' and 'page' are WordPress-reserved
+  // query vars, and a full page load of /catalog/?s=... makes WP run a site
+  // search instead of rendering the catalog page (hello 404 on browser Back).
+  function syncURL(push){
     var q = [];
-    if (F.s)        q.push('s=' + encodeURIComponent(F.s));
+    if (F.s)        q.push('q=' + encodeURIComponent(F.s));
     if (F.brand)    q.push('brand=' + encodeURIComponent(F.brand));
     if (F.category) q.push('category=' + encodeURIComponent(F.category));
     if (F.fit)      q.push('fit=' + encodeURIComponent(F.fit));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
     if (F.sort)     q.push('sort=' + encodeURIComponent(F.sort));
-    if (F.page > 1) q.push('page=' + F.page);
+    if (F.page > 1) q.push('pg=' + F.page);
     if (curPid)     q.push('pid=' + encodeURIComponent(curPid));
-    try { history.replaceState(null, '', location.pathname + (q.length ? ('?' + q.join('&')) : '')); } catch(e){}
+    var url = location.pathname + (q.length ? ('?' + q.join('&')) : '');
+    try { if (push) history.pushState(null, '', url); else history.replaceState(null, '', url); } catch(e){}
   }
   function readURL(){
     var p;
     try { p = new URLSearchParams(location.search); } catch(e){ return null; }
-    F.s        = p.get('s') || '';
+    F.s        = p.get('q') || '';
     F.brand    = p.get('brand') || '';
     F.category = p.get('category') || '';
     F.fit      = p.get('fit') || '';
     F.color    = p.get('color') || '';
     F.quality  = p.get('quality') || '';
     F.sort     = p.get('sort') || '';
-    F.page     = parseInt(p.get('page') || '1', 10) || 1;
+    F.page     = parseInt(p.get('pg') || '1', 10) || 1;
     return p.get('pid');
   }
   var quote = [], dStep = 1, method = 'print', locs = 1, embType = 'text', sent = false;
@@ -253,7 +257,7 @@
   }
 
   /* ---------- product detail ---------- */
-  function openPDP(id){
+  function openPDP(id, fromPop){
     api('catalog/item?id=' + id).then(function(p){
       if (!p || p.error){ console.error('BT Catalog: item load failed for id ' + id, p); alert('Sorry — could not load that product. Please try again.'); return; }
       var colors = Array.isArray(p.colors) ? p.colors : [];
@@ -290,10 +294,32 @@
       renderColors(current);
       renderSizes(current);
       document.getElementById('btAdd').addEventListener('click', addToQuote);
-      curPid = String(id); syncURL();
+      var wasOpen = !!curPid;
+      curPid = String(id);
+      if (fromPop) { syncURL(); }               // history already moved
+      else { syncURL(!wasOpen); pdpPushed = !wasOpen || pdpPushed; }
     }).catch(function(err){ console.error('BT Catalog: item fetch error', err); alert('Sorry — could not load that product.'); });
   }
-  function closePDP(){ var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none'; root.classList.remove('bt-pdp-open'); window.scrollTo(0, btScrollMem||0); curPid=null; syncURL(); }
+  var pdpPushed = false;
+  function closePDP(skipHistory){
+    var p=document.getElementById('btPdp'); p.className='pdp'; p.style.cssText='display:none';
+    root.classList.remove('bt-pdp-open'); window.scrollTo(0, btScrollMem||0); curPid=null;
+    if (!skipHistory){
+      if (pdpPushed){ pdpPushed=false; history.back(); return; }   // popstate finishes the URL cleanup
+      syncURL();
+    }
+    pdpPushed = false;
+  }
+  // Browser Back/Forward: close or open the product view in place instead of
+  // doing a full page load (which is what used to 404 on WP's search hijack).
+  window.addEventListener('popstate', function(){
+    var pid = readURL();
+    var si2 = document.getElementById('btSearch'); if (si2) si2.value = F.s;
+    var so2 = document.getElementById('btSort');   if (so2) so2.value = F.sort;
+    if (!pid && curPid){ closePDP(true); renderActive(); loadGrid(); return; }
+    if (pid && pid !== curPid){ openPDP(pid, true); return; }
+    if (!pid){ renderActive(); loadGrid(); }
+  });
 
   function renderColors(p){
     var box = document.getElementById('btColors2');
@@ -525,5 +551,5 @@
   var si = document.getElementById('btSearch'); if (si) si.value = F.s;
   renderActive();
   loadGrid();
-  if (bootPid) openPDP(bootPid);
+  if (bootPid) openPDP(bootPid, true);   // boot: replace, don't push
 })();

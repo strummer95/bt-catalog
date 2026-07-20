@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.18.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.18.1.zip",
+  "version": "0.18.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.18.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fix: S&S specials are per-SKU (color/size) \u2014 the importer was only reading the first SKU per size and missing sales on other colorways. Now scans every SKU and uses the lowest genuine special on the style (matches S&S's own Starting At price). salePrice equal to regular price is correctly treated as no sale."
+  "changelog": "Fix: browser Back from a product 404'd \u2014 catalog URLs used ?s= and ?page=, which are WordPress-reserved query vars that trigger a site search on full page load. Now ?q= / ?pg=, with a 301 redirect for old links. Product view also pushes a real history entry, so browser Back now closes the product and returns to your search results in place."
 }
