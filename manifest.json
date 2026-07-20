@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.18.2",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.18.2.zip",
+  "version": "0.19.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.19.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fix: browser Back from a product 404'd \u2014 catalog URLs used ?s= and ?page=, which are WordPress-reserved query vars that trigger a site search on full page load. Now ?q= / ?pg=, with a 301 redirect for old links. Product view also pushes a real history entry, so browser Back now closes the product and returns to your search results in place."
+  "changelog": "Per-color pricing: each colorway now carries its own cost and sale, so the product page price updates as you pick colors \u2014 only colorways actually on special show the sale price. Quote lines use the selected color's price. Probe now lists which colors are on sale and includes a raw S&S SKU dump for debugging. Grid shows the style's lowest (starting-at) price."
 }

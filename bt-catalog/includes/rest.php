@@ -229,6 +229,38 @@ function bt_cat_rest_list($req) {
     );
 }
 
+
+/**
+ * Per-color customer pricing. The colors JSON carries internal supplier
+ * cost/sale per colorway (S&S specials differ by color) — strip those and
+ * emit customer-safe price/was per color instead. A manual style override
+ * flattens every color to the override. Rows imported before per-color
+ * pricing existed fall back to the style-level pair.
+ */
+function bt_cat_rest_colors_out($r, $cols, $pp) {
+    $ov = isset($r['retail_override']) && $r['retail_override'] !== null && (float) $r['retail_override'] > 0;
+    $out = array();
+    foreach ((array) $cols as $c) {
+        $cost = isset($c['cost']) ? (float) $c['cost'] : 0;
+        $sale = isset($c['sale']) ? (float) $c['sale'] : 0;
+        unset($c['cost'], $c['sale']);
+        if ($ov) {
+            $c['price'] = $pp['price']; $c['was'] = null;
+        } elseif ($cost <= 0) {
+            $c['price'] = $pp['price']; $c['was'] = $pp['was'];   // legacy row fallback
+        } else {
+            $reg = bt_cat_autoprice($cost);
+            $c['price'] = $reg; $c['was'] = null;
+            if ($sale > 0 && $sale < $cost) {
+                $sp = bt_cat_autoprice($sale);
+                if ($sp < $reg) { $c['price'] = $sp; $c['was'] = $reg; }
+            }
+        }
+        $out[] = $c;
+    }
+    return $out;
+}
+
 /** Map DB rows to customer-safe list items (cost never leaves the server). */
 function bt_cat_rest_rows_to_items($rows) {
     $popList = bt_cat_popular();
@@ -276,6 +308,7 @@ function bt_cat_rest_item($req) {
 
     $pp   = bt_cat_price_pair($r);
     $cols = json_decode($r['colors'], true); $cols = is_array($cols) ? $cols : array();
+    $cols = bt_cat_rest_colors_out($r, $cols, $pp);
     $specs = json_decode($r['specs'], true); $specs = is_array($specs) ? $specs : array();
 
     return array(

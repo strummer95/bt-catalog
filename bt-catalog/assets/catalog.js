@@ -272,9 +272,7 @@
         '<div class="pdp-grid"><div class="pdp-img" id="btPdpImg"></div><div>' +
           '<div class="pbrand">'+esc(p.brand)+'</div><h1>'+esc(p.name||p.style)+'</h1>' +
           '<div class="pstyle">'+supLabel(p.supplier)+'Style '+esc(p.style)+'</div>' +
-          (p.was
-            ? '<div class="price onsale">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small> <s class="was">'+money(p.was)+'</s> <span class="salepill">Sale</span></div>'
-            : '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>') +
+          '<div class="price" id="btPdpPrice"></div>' +
           '<div class="priceNote">Per-piece retail before decoration. Final price comes back on your quote.</div>' +
           '<div class="desc">'+(p.desc||'')+'</div>' +
           '<ul class="specs">'+ specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +
@@ -321,6 +319,22 @@
     if (!pid){ renderActive(); loadGrid(); }
   });
 
+  function selColor(){
+    return current.colors.filter(function(x){ return x.name===currentColor; })[0] || current.colors[0] || {};
+  }
+  function colorPrice(c){
+    var price = (c && c.price != null) ? c.price : current.price;
+    var was   = (c && c.price != null) ? c.was   : current.was;
+    return { price: price, was: was || null };
+  }
+  function updatePdpPrice(){
+    var el = document.getElementById('btPdpPrice'); if (!el) return;
+    var pr = colorPrice(selColor());
+    el.className = pr.was ? 'price onsale' : 'price';
+    el.innerHTML = money(pr.price) + ' <small style="font-size:13px;color:#8a8aa0">/ea retail</small>' +
+      (pr.was ? ' <s class="was">'+money(pr.was)+'</s> <span class="salepill">Sale</span>' : '');
+  }
+
   function renderColors(p){
     var box = document.getElementById('btColors2');
     box.innerHTML = '<div class="colorprev" id="btColorPrev"></div>' + p.colors.map(function(c){
@@ -334,9 +348,9 @@
     box.querySelectorAll('.copt').forEach(function(s){ s.addEventListener('click', function(){
       currentColor = s.getAttribute('data-c');
       box.querySelectorAll('.copt').forEach(function(x){ x.classList.remove('sel'); });
-      s.classList.add('sel'); setColorName(); swapImage();
+      s.classList.add('sel'); setColorName(); swapImage(); updatePdpPrice();
     }); });
-    swapImage();
+    swapImage(); updatePdpPrice();
   }
   function setColorName(){ var el=document.getElementById('btColorName'); if(el) el.textContent = currentColor ? ('\u2014 '+currentColor) : ''; }
   function swapImage(){
@@ -360,9 +374,10 @@
     document.querySelectorAll('#btSizes input').forEach(function(i){ var v=parseInt(i.value||0,10); if(v>0) sizes[i.getAttribute('data-sz')]=v; });
     var qty = Object.keys(sizes).reduce(function(a,k){ return a+sizes[k]; }, 0);
     if (qty === 0){ alert('Add at least one size quantity.'); return; }
-    var c = current.colors.filter(function(x){ return x.name===currentColor; })[0] || {};
+    var c = selColor();
+    var pr = colorPrice(c);
     quote.push({ id:current.id, supplier:current.supplier, brand:current.brand, name:current.name||current.style, style:current.style,
-      color:currentColor||'', img:c.img||'', price:current.price, sizes:sizes, qty:qty });
+      color:currentColor||'', img:c.img||'', price:pr.price, sizes:sizes, qty:qty });
     updateBadge(); closePDP(); dStep=1; openDrawer();
   }
 

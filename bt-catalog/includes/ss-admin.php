@@ -230,11 +230,18 @@ function bt_cat_ss_page() {
                         <tr><td>Sizes</td><td><?php echo esc_html($probe['sizes']); ?></td></tr>
                         <tr><td>Your cost</td><td>$<?php echo esc_html(number_format((float) $probe['your_cost'], 2)); ?></td></tr>
                         <tr><td>Sale cost</td><td><?php echo $probe['sale_cost'] > 0 ? '$' . esc_html(number_format((float) $probe['sale_cost'], 2)) : '—'; ?></td></tr>
+                        <tr><td>Colors on sale</td><td><?php echo !empty($probe['color_sales']) ? esc_html(implode(', ', $probe['color_sales'])) : '—'; ?></td></tr>
                         <tr><td>Sample image</td><td><?php echo $probe['sample_img']
                             ? '<a href="' . esc_url($probe['sample_img']) . '" target="_blank">view photo</a>' : '—'; ?></td></tr>
                     </table>
                     <?php if ($probe['sample_img']): ?>
                         <p><img src="<?php echo esc_url($probe['sample_img']); ?>" style="max-height:160px;border:1px solid #ddd;border-radius:8px;margin-top:8px"></p>
+                    <?php endif; ?>
+                    <?php if (!empty($probe['raw'])): ?>
+                        <details style="margin-top:10px">
+                            <summary style="cursor:pointer">Raw SKU data from S&amp;S (debugging — first <?php echo count($probe['raw']); ?> SKUs, every field)</summary>
+                            <pre style="max-height:420px;overflow:auto;background:#f6f7f7;border:1px solid #dcdcde;padding:10px;font-size:11px"><?php echo esc_html(wp_json_encode($probe['raw'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></pre>
+                        </details>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>

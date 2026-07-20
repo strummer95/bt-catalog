@@ -114,12 +114,12 @@ function bt_cat_ss_style($styleNo) {
 }
 
 /** Pull SKUs and reduce them to colors / sizes / representative pricing. */
-function bt_cat_ss_reduce($styleID) {
+function bt_cat_ss_reduce($styleID, $withRaw = false) {
     $p = bt_cat_ss_get('products/?style=' . urlencode($styleID) . '&pageSize=500', 12);
     if (empty($p['ok'])) return $p;  // carries 'rate' flag through on 429
     $skus = $p['data'];
 
-    $colors = array();   // colorName => [name,hex,img]
+    $colors = array();   // colorName => [name,hex,img,swatch,cost,sale]
     $sizes  = array();
     $bySize = array();   // sizeName => [cost,wt]
     $saleMin = 0;        // lowest genuine special anywhere on the style
@@ -136,6 +136,8 @@ function bt_cat_ss_reduce($styleID) {
                 'swatch' => !empty($k['colorSwatchImage'])
                     ? 'https://www.ssactivewear.com/' . ltrim($k['colorSwatchImage'], '/')
                     : '',
+                'cost' => 0,   // per-color pricing (specials differ by colorway)
+                'sale' => 0,
             );
         }
         // S&S specials are per-SKU (color+size) — a style can be on sale in
@@ -146,6 +148,10 @@ function bt_cat_ss_reduce($styleID) {
         $kc = (float) ($k['customerPrice'] ?? 0);
         $ks = (float) ($k['salePrice'] ?? 0);
         if ($ks > 0 && $kc > 0 && $ks < $kc && ($saleMin == 0 || $ks < $saleMin)) $saleMin = $ks;
+        if ($c !== '' && isset($colors[$c])) {
+            if ($colors[$c]['cost'] == 0 && $kc > 0) $colors[$c]['cost'] = $kc;
+            if ($ks > 0 && $kc > 0 && $ks < $kc && ($colors[$c]['sale'] == 0 || $ks < $colors[$c]['sale'])) $colors[$c]['sale'] = $ks;
+        }
 
         $z = $k['sizeName'] ?? '';
         if ($z !== '') {
@@ -167,7 +173,9 @@ function bt_cat_ss_reduce($styleID) {
     if ($cost === 0) foreach ($bySize as $d) if ($d['cost'] > 0) { $cost=$d['cost']; $weight=$d['wt']; break; }
     if ($weight === null) foreach ($bySize as $d) if ($d['wt'] !== null) { $weight=$d['wt']; break; }
 
-    return array('ok'=>true, 'colors'=>$colors, 'sizes'=>$sizes, 'cost'=>$cost, 'sale'=>$saleMin, 'weight'=>$weight);
+    $out = array('ok'=>true, 'colors'=>$colors, 'sizes'=>$sizes, 'cost'=>$cost, 'sale'=>$saleMin, 'weight'=>$weight);
+    if ($withRaw) $out['raw'] = array_slice(array_values((array) $skus), 0, 12);
+    return $out;
 }
 
 /** Probe one style — read-only sanity check, writes nothing. */
@@ -175,12 +183,16 @@ function bt_cat_ss_probe($styleNo) {
     $s = bt_cat_ss_style($styleNo);
     if (empty($s['ok'])) return $s;
     $style = $s['style'];
-    $r = bt_cat_ss_reduce($style['styleID'] ?? '');
+    $r = bt_cat_ss_reduce($style['styleID'] ?? '', true);
     if (empty($r['ok'])) return $r;
 
     $first = reset($r['colors']);
     return array(
         'ok'        => true,
+        'raw'       => $r['raw'] ?? array(),
+        'color_sales' => array_values(array_filter(array_map(function ($c) {
+            return $c['sale'] > 0 ? $c['name'] . ' @ $' . number_format($c['sale'], 2) : null;
+        }, $r['colors']))),
         'warn'      => $s['warn'] ?? '',
         'style_no'  => $style['styleName']    ?? '',
         'brand'     => $style['brandName']    ?? '',
