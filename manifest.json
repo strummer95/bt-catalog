@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.18.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.18.0.zip",
+  "version": "0.18.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.18.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Nightly S&S price refresh (3am): re-pulls cost, sale price, colors, and sizes for every imported S&S style so sale pricing is never stale. New 'Refresh prices now' button with live progress on the S&S admin page. Products stay live during refresh; manual overrides untouched. Cron cleanup on deactivate."
+  "changelog": "Fix: S&S specials are per-SKU (color/size) \u2014 the importer was only reading the first SKU per size and missing sales on other colorways. Now scans every SKU and uses the lowest genuine special on the style (matches S&S's own Starting At price). salePrice equal to regular price is correctly treated as no sale."
 }

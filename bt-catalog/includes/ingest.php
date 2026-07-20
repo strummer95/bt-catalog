@@ -121,7 +121,8 @@ function bt_cat_ss_reduce($styleID) {
 
     $colors = array();   // colorName => [name,hex,img]
     $sizes  = array();
-    $bySize = array();   // sizeName => [cost,sale,wt]
+    $bySize = array();   // sizeName => [cost,wt]
+    $saleMin = 0;        // lowest genuine special anywhere on the style
 
     foreach ($skus as $k) {
         $c = $k['colorName'] ?? '';
@@ -137,28 +138,36 @@ function bt_cat_ss_reduce($styleID) {
                     : '',
             );
         }
+        // S&S specials are per-SKU (color+size) — a style can be on sale in
+        // White but not Black. Scan every SKU and keep the lowest genuine sale
+        // (salePrice actually below that SKU's customerPrice), mirroring
+        // S&S's own "Starting at" display. salePrice == customerPrice just
+        // means "no special" and is ignored.
+        $kc = (float) ($k['customerPrice'] ?? 0);
+        $ks = (float) ($k['salePrice'] ?? 0);
+        if ($ks > 0 && $kc > 0 && $ks < $kc && ($saleMin == 0 || $ks < $saleMin)) $saleMin = $ks;
+
         $z = $k['sizeName'] ?? '';
         if ($z !== '') {
             if (!in_array($z, $sizes, true)) $sizes[] = $z;
             if (!isset($bySize[$z])) $bySize[$z] = array(
-                'cost' => (float) ($k['customerPrice'] ?? 0),
-                'sale' => (float) ($k['salePrice'] ?? 0),
+                'cost' => $kc,
                 'wt'   => !empty($k['unitWeight']) ? round((float) $k['unitWeight'] * 16, 2) : null,
             );
         }
     }
 
     // Representative cost: prefer a common size, else first priced size.
-    $cost = 0; $sale = 0; $weight = null;
+    $cost = 0; $weight = null;
     foreach (array('L','M','XL','S','2XL','3XL') as $z) {
         if (isset($bySize[$z]) && $bySize[$z]['cost'] > 0) {
-            $cost = $bySize[$z]['cost']; $sale = $bySize[$z]['sale']; $weight = $bySize[$z]['wt']; break;
+            $cost = $bySize[$z]['cost']; $weight = $bySize[$z]['wt']; break;
         }
     }
-    if ($cost === 0) foreach ($bySize as $d) if ($d['cost'] > 0) { $cost=$d['cost']; $sale=$d['sale']; $weight=$d['wt']; break; }
+    if ($cost === 0) foreach ($bySize as $d) if ($d['cost'] > 0) { $cost=$d['cost']; $weight=$d['wt']; break; }
     if ($weight === null) foreach ($bySize as $d) if ($d['wt'] !== null) { $weight=$d['wt']; break; }
 
-    return array('ok'=>true, 'colors'=>$colors, 'sizes'=>$sizes, 'cost'=>$cost, 'sale'=>$sale, 'weight'=>$weight);
+    return array('ok'=>true, 'colors'=>$colors, 'sizes'=>$sizes, 'cost'=>$cost, 'sale'=>$saleMin, 'weight'=>$weight);
 }
 
 /** Probe one style — read-only sanity check, writes nothing. */
