@@ -264,6 +264,12 @@ function bt_cat_ss_page() {
                     <?php else: ?>
                         <p class="description">This style isn't in the catalog DB yet.</p>
                     <?php endif; ?>
+                    <form method="post" style="margin:10px 0 4px">
+                        <?php wp_nonce_field('bt_cat_pull'); ?>
+                        <input type="hidden" name="import_styles" value="<?php echo esc_attr(trim($probe['brand'] . ' ' . $probe['style_no'])); ?>">
+                        <button type="submit" name="bt_cat_import" value="1" class="button button-primary">Import this style now</button>
+                        <span class="description" style="margin-left:8px">Writes the live values above into the catalog immediately.</span>
+                    </form>
                     <?php if (!empty($probe['raw'])): ?>
                         <details style="margin-top:10px">
                             <summary style="cursor:pointer">Raw SKU data from S&amp;S (debugging — first <?php echo count($probe['raw']); ?> SKUs, every field)</summary>
@@ -304,12 +310,7 @@ function bt_cat_ss_page() {
         <p class="description">Step B — import styles into the catalog. One per line or comma-separated. Use <em>brand + number</em> (e.g. <code>Gildan 5000</code>):</p>
         <form method="post">
             <?php wp_nonce_field('bt_cat_pull'); ?>
-            <textarea name="import_styles" rows="4" class="large-text code" style="max-width:620px">Gildan 5000
-Gildan 18500
-Gildan 18000
-Gildan 64000
-Gildan 2000
-Bella 3001</textarea>
+            <textarea name="import_styles" rows="4" class="large-text code" style="max-width:620px" placeholder="Gildan 5000&#10;Bella 3001&#10;BX003"></textarea>
             <p><button type="submit" name="bt_cat_import" value="1" class="button button-primary">Import these styles</button></p>
         </form>
 

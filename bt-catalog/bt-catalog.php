@@ -3,13 +3,13 @@
 Plugin Name: BT Catalog
 Plugin URI: https://boomerts.com
 Description: Boomer T's unified blank-apparel catalog (S&S Activewear + SanMar + EG-PRO) with quote flow. Pulls live product data into a local cache and renders it via the [bt_catalog] shortcode.
-Version: 0.21.0
+Version: 0.21.1
 Author: Duck and Rabbit Co.
 */
 
 if (!defined('ABSPATH')) exit;
 
-define('BT_CAT_VERSION', '0.21.0');
+define('BT_CAT_VERSION', '0.21.1');
 define('BT_CAT_DIR', plugin_dir_path(__FILE__));
 define('BT_CAT_URL', plugin_dir_url(__FILE__));
 define('BT_CAT_FILE', __FILE__);
@@ -47,6 +47,11 @@ add_action('init', function () {
         // regular cost, per-SKU sale detection, per-color pricing) — queue a
         // full S&S data refresh once per update so cached rows rebuild
         // themselves without any manual re-import.
-        if (function_exists('bt_cat_refresh_start')) bt_cat_refresh_start(false);
+        // ...but never restart a refresh that's already mid-queue — rapid
+        // updates were resetting progress to the front of the line.
+        if (function_exists('bt_cat_refresh_start') && function_exists('bt_cat_refresh_pending')
+            && bt_cat_refresh_pending() === 0) {
+            bt_cat_refresh_start(false);
+        }
     }
 });

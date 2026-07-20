@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.21.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.21.0.zip",
+  "version": "0.21.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.21.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Sale price shown under the specific color swatch that's on special (red 'Sale $X.XX' tag on the product page color grid). Probe now shows what's stored in the catalog DB next to the live API values, with a clear stale-vs-current verdict, so stale cached data is obvious at a glance."
+  "changelog": "Probe results now have an 'Import this style now' button \u2014 one click writes the live values straight into the catalog. Import textarea no longer pre-filled with example styles (that footgun silently imported Gildans instead of what you probed). Plugin updates no longer restart an in-progress background refresh from the beginning."
 }
