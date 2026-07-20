@@ -350,7 +350,8 @@
       var bg = c.swatch
         ? 'background-image:url('+c.swatch+');background-size:cover;background-position:center'
         : ('background:' + (c.hex ? '#' + String(c.hex).replace('#','') : '#dddddd'));
-      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><div class="csq" style="'+bg+'"></div><span class="clabel">'+esc(c.name)+'</span></div>';
+      var saleTag = (c.was != null && c.was > 0) ? '<span class="csale">Sale '+money(c.price)+'</span>' : '';
+      return '<div class="copt'+sel+'" data-c="'+esc(c.name)+'"><div class="csq" style="'+bg+'"></div><span class="clabel">'+esc(c.name)+'</span>'+saleTag+'</div>';
     }).join('');
     setColorName();
     box.querySelectorAll('.copt').forEach(function(s){ s.addEventListener('click', function(){

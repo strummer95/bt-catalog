@@ -237,6 +237,33 @@ function bt_cat_ss_page() {
                     <?php if ($probe['sample_img']): ?>
                         <p><img src="<?php echo esc_url($probe['sample_img']); ?>" style="max-height:160px;border:1px solid #ddd;border-radius:8px;margin-top:8px"></p>
                     <?php endif; ?>
+                    <?php
+                    // Diagnostic: what the catalog DB currently holds for this
+                    // style, next to the live API values above — makes stale
+                    // cached data vs live data obvious at a glance.
+                    global $wpdb;
+                    $dbRow = $wpdb->get_row($wpdb->prepare(
+                        "SELECT id, cost, sale_cost, retail, retail_override, colors, updated_at FROM " . bt_cat_table() .
+                        " WHERE supplier='ss' AND style_no=%s LIMIT 1", $probe['style_no']), ARRAY_A);
+                    ?>
+                    <?php if ($dbRow): $dbCols = json_decode($dbRow['colors'], true); $dbCols = is_array($dbCols) ? $dbCols : array(); ?>
+                        <h4 style="margin:14px 0 4px">Stored in your catalog right now (row #<?php echo (int) $dbRow['id']; ?>, last written <?php echo esc_html($dbRow['updated_at']); ?>)</h4>
+                        <table class="widefat striped" style="max-width:560px">
+                            <tr><td>Stored cost / sale cost</td><td>$<?php echo esc_html(number_format((float) $dbRow['cost'], 2)); ?> / <?php echo $dbRow['sale_cost'] > 0 ? '$' . esc_html(number_format((float) $dbRow['sale_cost'], 2)) : '—'; ?></td></tr>
+                            <?php foreach ($dbCols as $dc): ?>
+                            <tr><td><?php echo esc_html($dc['name'] ?? '?'); ?></td>
+                                <td>cost <?php echo isset($dc['cost']) && $dc['cost'] > 0 ? '$' . esc_html(number_format((float) $dc['cost'], 2)) : '—'; ?>
+                                    · sale <?php echo isset($dc['sale']) && $dc['sale'] > 0 ? '<strong style="color:#d1202f">$' . esc_html(number_format((float) $dc['sale'], 2)) . '</strong>' : '—'; ?></td></tr>
+                            <?php endforeach; ?>
+                        </table>
+                        <?php if ((float) $dbRow['sale_cost'] != (float) $probe['sale_cost']): ?>
+                            <p style="color:#b32d2e"><strong>Stored data is stale</strong> — live API sale (<?php echo $probe['sale_cost'] > 0 ? '$' . esc_html(number_format((float) $probe['sale_cost'], 2)) : 'none'; ?>) differs from what's stored. Import this style below or wait for the background refresh to reach it.</p>
+                        <?php else: ?>
+                            <p style="color:#00a32a"><strong>Stored data matches the live API.</strong> If the storefront still shows old prices, it's front-end caching — hard-refresh the catalog page.</p>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <p class="description">This style isn't in the catalog DB yet.</p>
+                    <?php endif; ?>
                     <?php if (!empty($probe['raw'])): ?>
                         <details style="margin-top:10px">
                             <summary style="cursor:pointer">Raw SKU data from S&amp;S (debugging — first <?php echo count($probe['raw']); ?> SKUs, every field)</summary>

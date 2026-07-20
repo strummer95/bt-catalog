@@ -58,3 +58,4 @@
 #btcat-root .fsec.collapsed .fhead::after{transform:rotate(-90deg)}
 #btcat-root .fsec.collapsed .fbody{display:none}
 #btcat-root .saletag{position:absolute;top:9px;right:9px;z-index:2;background:#d1202f;color:#fff;font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:5px;box-shadow:0 1px 4px rgba(0,0,0,.18)}#btcat-root .price.onsale{color:#d1202f}#btcat-root .price .was{font-family:inherit;font-size:13px;color:#8a8aa0;font-weight:400;margin-left:5px}#btcat-root .salepill{display:inline-block;vertical-align:middle;background:#d1202f;color:#fff;font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:5px;margin-left:6px}
+#btcat-root .copt .csale{display:block;font-family:"Oswald",sans-serif;font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:#d1202f;font-weight:700;margin-top:1px;line-height:1.1}
