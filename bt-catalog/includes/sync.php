@@ -219,7 +219,7 @@ function bt_cat_refresh_pending() {
 }
 
 /** Queue every imported S&S style and start the minute ticker. */
-function bt_cat_refresh_start() {
+function bt_cat_refresh_start($runBatch = true) {
     global $wpdb;
     $t = bt_cat_table();
     // Don't fight an active full sync for the API budget.
@@ -231,7 +231,10 @@ function bt_cat_refresh_start() {
     if (!wp_next_scheduled(BT_CAT_REFRESH_HOOK)) {
         wp_schedule_event(time() + 5, 'bt_cat_minute', BT_CAT_REFRESH_HOOK);
     }
-    $b = bt_cat_refresh_batch();   // start moving immediately
+    // $runBatch=false when queued from a version bump on a live page load —
+    // never make a visitor wait on 45 supplier API calls.
+    $b = $runBatch ? bt_cat_refresh_batch()
+                   : array('processed' => 0, 'pending' => bt_cat_refresh_pending());
     return array('ok' => true, 'queued' => count($ids), 'processed' => $b['processed'], 'pending' => $b['pending']);
 }
 

@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.20.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.20.0.zip",
+  "version": "0.20.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.20.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Grid cards show a price range when colorways price differently (e.g. $6.95-$8.95), red with a Sale badge when any colorway is on special. Single-price styles unchanged. Product page continues to show the selected color's price with a Sale pill and struck-through regular when that colorway is on special."
+  "changelog": "Auto data rebuild: updating the plugin now queues a full S&S price refresh automatically (runs in the background at 45 styles/min), so cached rows rebuild with the corrected piecePrice/sale/per-color pricing without any manual re-import. Pipeline verified end-to-end against live BX003 SKU data."
 }
