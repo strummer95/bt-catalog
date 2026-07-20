@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.19.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.19.0.zip",
+  "version": "0.19.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.19.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Per-color pricing: each colorway now carries its own cost and sale, so the product page price updates as you pick colors \u2014 only colorways actually on special show the sale price. Quote lines use the selected color's price. Probe now lists which colors are on sale and includes a raw S&S SKU dump for debugging. Grid shows the style's lowest (starting-at) price."
+  "changelog": "Fix sale detection using verified live S&S data: during a special, S&S drops customerPrice AND salePrice to the sale price \u2014 the regular price is piecePrice. Regular cost now reads piecePrice; a SKU is on sale when salePrice is below piecePrice and saleExpiration hasn't passed. Verified against BX003: White $6.95 (was $8.95), other colors $8.95."
 }

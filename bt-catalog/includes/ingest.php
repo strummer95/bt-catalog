@@ -140,24 +140,28 @@ function bt_cat_ss_reduce($styleID, $withRaw = false) {
                 'sale' => 0,
             );
         }
-        // S&S specials are per-SKU (color+size) — a style can be on sale in
-        // White but not Black. Scan every SKU and keep the lowest genuine sale
-        // (salePrice actually below that SKU's customerPrice), mirroring
-        // S&S's own "Starting at" display. salePrice == customerPrice just
-        // means "no special" and is ignored.
-        $kc = (float) ($k['customerPrice'] ?? 0);
-        $ks = (float) ($k['salePrice'] ?? 0);
-        if ($ks > 0 && $kc > 0 && $ks < $kc && ($saleMin == 0 || $ks < $saleMin)) $saleMin = $ks;
+        // S&S pricing quirk (verified against live SKU data): when a special is
+        // active, customerPrice AND salePrice BOTH drop to the sale price — the
+        // regular price is piecePrice, and saleExpiration appears only on sale
+        // SKUs. So: regular = piecePrice, sale = salePrice when it's genuinely
+        // below piecePrice and not expired. Specials are per-SKU (color+size).
+        $kreg = (float) ($k['piecePrice'] ?? 0);
+        if ($kreg <= 0) $kreg = (float) ($k['customerPrice'] ?? 0);
+        $ks   = (float) ($k['salePrice'] ?? 0);
+        $exp  = !empty($k['saleExpiration']) ? strtotime($k['saleExpiration']) : false;
+        $onSale = ($ks > 0 && $kreg > 0 && $ks < $kreg && ($exp === false || $exp >= time()));
+
+        if ($onSale && ($saleMin == 0 || $ks < $saleMin)) $saleMin = $ks;
         if ($c !== '' && isset($colors[$c])) {
-            if ($colors[$c]['cost'] == 0 && $kc > 0) $colors[$c]['cost'] = $kc;
-            if ($ks > 0 && $kc > 0 && $ks < $kc && ($colors[$c]['sale'] == 0 || $ks < $colors[$c]['sale'])) $colors[$c]['sale'] = $ks;
+            if ($colors[$c]['cost'] == 0 && $kreg > 0) $colors[$c]['cost'] = $kreg;
+            if ($onSale && ($colors[$c]['sale'] == 0 || $ks < $colors[$c]['sale'])) $colors[$c]['sale'] = $ks;
         }
 
         $z = $k['sizeName'] ?? '';
         if ($z !== '') {
             if (!in_array($z, $sizes, true)) $sizes[] = $z;
             if (!isset($bySize[$z])) $bySize[$z] = array(
-                'cost' => $kc,
+                'cost' => $kreg,
                 'wt'   => !empty($k['unitWeight']) ? round((float) $k['unitWeight'] * 16, 2) : null,
             );
         }
