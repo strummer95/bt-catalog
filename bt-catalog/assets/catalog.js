@@ -209,11 +209,14 @@
       grid.innerHTML = d.items.map(function(p){
         var img = p.thumb ? '<img src="'+esc(p.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">'
                           : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ccc;font-size:13px">No image</div>';
+        var priceHtml = p.was
+          ? '<div class="price onsale">'+money(p.price)+' <small>/ea</small> <s class="was">'+money(p.was)+'</s></div>'
+          : '<div class="price">'+money(p.price)+' <small>/ea</small></div>';
         return '<div class="pcard" data-id="'+p.id+'">' +
-          '<div class="pimg">'+(p.popular ? '<span class="poptag">Popular</span>' : '')+img+'</div>' +
+          '<div class="pimg">'+(p.popular ? '<span class="poptag">Popular</span>' : '')+(p.was ? '<span class="saletag">Sale</span>' : '')+img+'</div>' +
           '<div class="pbody"><div class="pbrand">'+esc(p.brand)+'</div><div class="pname">'+esc(p.name||p.style)+'</div>' +
           '<div class="pstyle">'+supLabel(p.supplier)+'Style '+esc(p.style)+'</div>' +
-          '<div class="row"><div class="price">'+money(p.price)+' <small>/ea</small></div>' +
+          '<div class="row">'+priceHtml+
           '<div class="colorcount">'+p.colors+' colors available</div></div></div></div>';
       }).join('');
       grid.querySelectorAll('.pcard').forEach(function(){});
@@ -265,7 +268,9 @@
         '<div class="pdp-grid"><div class="pdp-img" id="btPdpImg"></div><div>' +
           '<div class="pbrand">'+esc(p.brand)+'</div><h1>'+esc(p.name||p.style)+'</h1>' +
           '<div class="pstyle">'+supLabel(p.supplier)+'Style '+esc(p.style)+'</div>' +
-          '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>' +
+          (p.was
+            ? '<div class="price onsale">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small> <s class="was">'+money(p.was)+'</s> <span class="salepill">Sale</span></div>'
+            : '<div class="price">'+money(p.price)+' <small style="font-size:13px;color:#8a8aa0">/ea retail</small></div>') +
           '<div class="priceNote">Per-piece retail before decoration. Final price comes back on your quote.</div>' +
           '<div class="desc">'+(p.desc||'')+'</div>' +
           '<ul class="specs">'+ specs.map(function(s){ return '<li><span>'+esc(s[0])+'</span><span>'+esc(s[1])+'</span></li>'; }).join('') +'</ul>' +

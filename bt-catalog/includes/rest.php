@@ -194,20 +194,28 @@ function bt_cat_rest_list($req) {
     // relevance/popular/type ordering only apply in the default "Featured" mode.
     // Price sorts on the effective price: manual override if set, else auto retail
     // (same COALESCE the customer-facing price uses).
+    // Effective customer price, sale-aware (SQL mirror of bt_cat_price_pair):
+    // override wins; else an active supplier sale prices at autoprice(sale_cost);
+    // else the stored auto retail. Autoprice = 2x rounded up to the nearest .95.
+    $eff = "CASE
+        WHEN retail_override IS NOT NULL AND retail_override > 0 THEN retail_override
+        WHEN sale_cost > 0 AND sale_cost < cost THEN FLOOR(2*sale_cost) + IF(FLOOR(2*sale_cost) + 0.95 >= 2*sale_cost - 0.0001, 0.95, 1.95)
+        ELSE retail
+    END";
     $sortSql = '';
     switch ($sort) {
-        case 'price_asc':  $sortSql = 'COALESCE(retail_override, retail) ASC, brand ASC, style_no ASC';  break;
-        case 'price_desc': $sortSql = 'COALESCE(retail_override, retail) DESC, brand ASC, style_no ASC'; break;
+        case 'price_asc':  $sortSql = "$eff ASC, brand ASC, style_no ASC";  break;
+        case 'price_desc': $sortSql = "$eff DESC, brand ASC, style_no ASC"; break;
         case 'name_asc':   $sortSql = 'name ASC, brand ASC, style_no ASC';  break;
         case 'brand_asc':  $sortSql = 'brand ASC, style_no ASC'; break;
     }
 
     if ($sortSql !== '') {
-        $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
+        $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, cost, sale_cost, retail, retail_override
                  FROM $t WHERE $wsql ORDER BY $sortSql LIMIT %d OFFSET %d";
         $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, array($per, $off))), ARRAY_A);
     } else {
-        $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
+        $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, cost, sale_cost, retail, retail_override
                  FROM $t WHERE $wsql ORDER BY $relCase $popCase $typeCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
         $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $relArgs, $popArgs, array($per, $off))), ARRAY_A);
     }
@@ -226,6 +234,7 @@ function bt_cat_rest_rows_to_items($rows) {
     $popList = bt_cat_popular();
     $items = array();
     foreach ((array) $rows as $r) {
+        $pp    = bt_cat_price_pair($r);
         $cols  = json_decode($r['colors'], true);
         $cols  = is_array($cols) ? $cols : array();
         $pidx  = bt_cat_preferred_color_idx($cols);
@@ -246,7 +255,8 @@ function bt_cat_rest_rows_to_items($rows) {
             'style'    => $r['style_no'],
             'name'     => $r['name'],
             'cat'      => $r['category'],
-            'price'    => bt_cat_price_row($r),
+            'price'    => $pp['price'],
+            'was'      => $pp['was'],
             'colors'   => count($cols),
             'thumb'    => $thumb,
             'popular'  => $pop,
@@ -260,10 +270,11 @@ function bt_cat_rest_item($req) {
     $t  = bt_cat_table();
     $id = (int) $req->get_param('id');
     $r  = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, supplier, brand, style_no, name, category, description, specs, colors, sizes, retail, retail_override
+        "SELECT id, supplier, brand, style_no, name, category, description, specs, colors, sizes, cost, sale_cost, retail, retail_override
          FROM $t WHERE id=%d AND detail_done=1", $id), ARRAY_A);
     if (!$r) return new WP_REST_Response(array('error' => 'not found'), 404);
 
+    $pp   = bt_cat_price_pair($r);
     $cols = json_decode($r['colors'], true); $cols = is_array($cols) ? $cols : array();
     $specs = json_decode($r['specs'], true); $specs = is_array($specs) ? $specs : array();
 
@@ -278,7 +289,8 @@ function bt_cat_rest_item($req) {
         'specs'  => $specs,
         'colors' => $cols,
         'sizes'  => array_values(array_filter(array_map('trim', explode(',', $r['sizes'])))),
-        'price'  => bt_cat_price_row($r),
+        'price'  => $pp['price'],
+        'was'    => $pp['was'],
     );
 }
 

@@ -32,6 +32,28 @@ function bt_cat_price_row($row) {
     return (float) ($row['retail'] ?? 0);
 }
 
+/**
+ * Customer price pair — sale-aware.
+ * When the supplier has an active sale (sale_cost > 0 and below regular cost),
+ * the sale retail is the same auto formula applied to the sale cost. A manual
+ * override always wins and suppresses the sale display entirely.
+ * Returns array('price' => what the customer pays, 'was' => regular retail when
+ * on sale, else null).
+ */
+function bt_cat_price_pair($row) {
+    $regular = bt_cat_price_row($row);
+    if (isset($row['retail_override']) && $row['retail_override'] !== null && (float) $row['retail_override'] > 0) {
+        return array('price' => $regular, 'was' => null);
+    }
+    $sc = isset($row['sale_cost']) ? (float) $row['sale_cost'] : 0.0;
+    $c  = isset($row['cost']) ? (float) $row['cost'] : 0.0;
+    if ($sc > 0 && ($c <= 0 || $sc < $c)) {
+        $sale = bt_cat_autoprice($sc);
+        if ($sale > 0 && $sale < $regular) return array('price' => $sale, 'was' => $regular);
+    }
+    return array('price' => $regular, 'was' => null);
+}
+
 /* ---- 1-minute cron schedule -------------------------------------------- */
 add_filter('cron_schedules', function ($s) {
     $s['bt_cat_minute'] = array('interval' => 60, 'display' => 'Every minute (BT Catalog)');
