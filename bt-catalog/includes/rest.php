@@ -52,13 +52,15 @@ function bt_cat_rest_list($req) {
     $fit   = sanitize_text_field((string) $req->get_param('fit'));
     $color = sanitize_text_field((string) $req->get_param('color'));
     $quality = sanitize_text_field((string) $req->get_param('quality'));
+    $sort  = sanitize_text_field((string) $req->get_param('sort'));
+    if (!in_array($sort, array('price_asc', 'price_desc', 'name_asc', 'brand_asc'), true)) $sort = '';
     $page  = max(1, (int) $req->get_param('page'));
     $per   = min(48, max(1, (int) ($req->get_param('per') ?: 24)));
     $off   = ($page - 1) * $per;
 
     // Featured: default page (no search/filter) leads with the configured styles,
     // brand-aware so "Gildan 5000" doesn't collide with another brand's 5000.
-    if ($s === '' && $brand === '' && $cat === '' && $color === '' && $fit === '' && $quality === '') {
+    if ($s === '' && $brand === '' && $cat === '' && $color === '' && $fit === '' && $quality === '' && $sort === '') {
         $resolved = bt_cat_featured_resolve();
         if (!empty($resolved)) {
             $total    = count($resolved);
@@ -188,9 +190,27 @@ function bt_cat_rest_list($req) {
             ELSE 6
         END ASC, ";
 
-    $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
-             FROM $t WHERE $wsql ORDER BY $relCase $popCase $typeCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
-    $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $relArgs, $popArgs, array($per, $off))), ARRAY_A);
+    // Explicit sort (from the toolbar dropdown) takes over the whole ORDER BY —
+    // relevance/popular/type ordering only apply in the default "Featured" mode.
+    // Price sorts on the effective price: manual override if set, else auto retail
+    // (same COALESCE the customer-facing price uses).
+    $sortSql = '';
+    switch ($sort) {
+        case 'price_asc':  $sortSql = 'COALESCE(retail_override, retail) ASC, brand ASC, style_no ASC';  break;
+        case 'price_desc': $sortSql = 'COALESCE(retail_override, retail) DESC, brand ASC, style_no ASC'; break;
+        case 'name_asc':   $sortSql = 'name ASC, brand ASC, style_no ASC';  break;
+        case 'brand_asc':  $sortSql = 'brand ASC, style_no ASC'; break;
+    }
+
+    if ($sortSql !== '') {
+        $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
+                 FROM $t WHERE $wsql ORDER BY $sortSql LIMIT %d OFFSET %d";
+        $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, array($per, $off))), ARRAY_A);
+    } else {
+        $sql  = "SELECT id, supplier, brand, style_no, name, category, colors, retail, retail_override
+                 FROM $t WHERE $wsql ORDER BY $relCase $popCase $typeCase brand ASC, style_no ASC LIMIT %d OFFSET %d";
+        $rows = $wpdb->get_results($wpdb->prepare($sql, array_merge($args, $relArgs, $popArgs, array($per, $off))), ARRAY_A);
+    }
 
     return array(
         'items' => bt_cat_rest_rows_to_items($rows),

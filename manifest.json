@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.15.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.15.0.zip",
+  "version": "0.16.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.16.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "New Export page (BT Catalog > Export): secured JSON endpoint so PresStora can copy the full catalog (products, colors/images, cost, retail + overrides, Quality tiers, Performance) in one click. Includes a ready-made Import into PresStora button. Fixed stale 0.1.0 version in the plugin header."
+  "changelog": "Sort dropdown on the storefront toolbar: Price Low-to-High / High-to-Low (uses your override price when set, else auto retail), Name A-Z, Brand A-Z. Sort persists in the shareable URL and works combined with any search/filter."
 }

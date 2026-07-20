@@ -8,7 +8,7 @@
     ['Red','#b3132a'],['Green','#1f7a44'],['Yellow','#e8a417'],['Orange','#e8601c'],
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
-  var F = { s:'', brand:'', category:'', fit:'', color:'', quality:'', page:1 };
+  var F = { s:'', brand:'', category:'', fit:'', color:'', quality:'', sort:'', page:1 };
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
@@ -20,6 +20,7 @@
     if (F.fit)      q.push('fit=' + encodeURIComponent(F.fit));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
+    if (F.sort)     q.push('sort=' + encodeURIComponent(F.sort));
     if (F.page > 1) q.push('page=' + F.page);
     if (curPid)     q.push('pid=' + encodeURIComponent(curPid));
     try { history.replaceState(null, '', location.pathname + (q.length ? ('?' + q.join('&')) : '')); } catch(e){}
@@ -33,6 +34,7 @@
     F.fit      = p.get('fit') || '';
     F.color    = p.get('color') || '';
     F.quality  = p.get('quality') || '';
+    F.sort     = p.get('sort') || '';
     F.page     = parseInt(p.get('page') || '1', 10) || 1;
     return p.get('pid');
   }
@@ -76,7 +78,14 @@
         '<div class="fsec collapsed"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
       '</aside>' +
       '<main>' +
-      '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div id="btActive"></div></div>' +
+      '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div style="display:flex;align-items:center;gap:8px"><div id="btActive"></div>' +
+        '<select id="btSort" class="sort">' +
+          '<option value="">Sort: Featured</option>' +
+          '<option value="price_asc">Price: Low to High</option>' +
+          '<option value="price_desc">Price: High to Low</option>' +
+          '<option value="name_asc">Name: A to Z</option>' +
+          '<option value="brand_asc">Brand: A to Z</option>' +
+        '</select></div></div>' +
       '<div class="grid" id="btGrid"></div>' +
       '<div class="pager" id="btPager"></div>' +
     '</main></div>' +
@@ -188,7 +197,8 @@
     if (F.fit) q += '&fit=' + encodeURIComponent(F.fit);
     if (F.quality) q += '&quality=' + encodeURIComponent(F.quality);
     if (F.color) q += '&color=' + encodeURIComponent(F.color);
-    if (!F.s && !F.brand && !F.category && !F.fit && !F.color && !F.quality) q += '&featured=1';
+    if (F.sort) q += '&sort=' + encodeURIComponent(F.sort);
+    if (!F.s && !F.brand && !F.category && !F.fit && !F.color && !F.quality && !F.sort) q += '&featured=1';
     var grid = document.getElementById('btGrid');
     grid.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8a8aa0">Loading\u2026</div>';
     api(q).then(function(d){
@@ -492,12 +502,20 @@
     });
   }
 
+  /* ---------- sort ---------- */
+  function bindSort(){
+    var sel = document.getElementById('btSort');
+    if (!sel) return;
+    sel.value = F.sort;
+    sel.addEventListener('change', function(){ F.sort = sel.value; F.page = 1; syncURL(); loadGrid(); });
+  }
+
   /* ---------- go ---------- */
   document.getElementById('btGrid').addEventListener('click', function(e){
     var card = e.target.closest('.pcard');
     if (card && card.getAttribute('data-id')) openPDP(card.getAttribute('data-id'));
   });
-  bindMenus(); bindSearch(); loadFacets();
+  bindMenus(); bindSearch(); bindSort(); loadFacets();
   var bootPid = readURL();
   var si = document.getElementById('btSearch'); if (si) si.value = F.s;
   renderActive();
