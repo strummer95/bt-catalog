@@ -213,11 +213,19 @@
       grid.innerHTML = d.items.map(function(p){
         var img = p.thumb ? '<img src="'+esc(p.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">'
                           : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#ccc;font-size:13px">No image</div>';
-        var priceHtml = p.was
-          ? '<div class="price onsale">'+money(p.price)+' <small>/ea</small> <s class="was">'+money(p.was)+'</s></div>'
-          : '<div class="price">'+money(p.price)+' <small>/ea</small></div>';
+        var onSale = !!(p.sale || p.was);
+        var priceHtml;
+        if (p.pmin != null && p.pmax != null && p.pmax > p.pmin) {
+          // Colorways price differently (specials or white-vs-colors pricing):
+          // show the range; red + Sale badge when any colorway is on special.
+          priceHtml = '<div class="price'+(onSale?' onsale':'')+'">'+money(p.pmin)+'\u2013'+money(p.pmax)+' <small>/ea</small></div>';
+        } else if (p.was) {
+          priceHtml = '<div class="price onsale">'+money(p.price)+' <small>/ea</small> <s class="was">'+money(p.was)+'</s></div>';
+        } else {
+          priceHtml = '<div class="price">'+money((p.pmin != null ? p.pmin : p.price))+' <small>/ea</small></div>';
+        }
         return '<div class="pcard" data-id="'+p.id+'">' +
-          '<div class="pimg">'+(p.popular ? '<span class="poptag">Popular</span>' : '')+(p.was ? '<span class="saletag">Sale</span>' : '')+img+'</div>' +
+          '<div class="pimg">'+(p.popular ? '<span class="poptag">Popular</span>' : '')+(onSale ? '<span class="saletag">Sale</span>' : '')+img+'</div>' +
           '<div class="pbody"><div class="pbrand">'+esc(p.brand)+'</div><div class="pname">'+esc(p.name||p.style)+'</div>' +
           '<div class="pstyle">'+supLabel(p.supplier)+'Style '+esc(p.style)+'</div>' +
           '<div class="row">'+priceHtml+

@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.19.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.19.1.zip",
+  "version": "0.20.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.20.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fix sale detection using verified live S&S data: during a special, S&S drops customerPrice AND salePrice to the sale price \u2014 the regular price is piecePrice. Regular cost now reads piecePrice; a SKU is on sale when salePrice is below piecePrice and saleExpiration hasn't passed. Verified against BX003: White $6.95 (was $8.95), other colors $8.95."
+  "changelog": "Grid cards show a price range when colorways price differently (e.g. $6.95-$8.95), red with a Sale badge when any colorway is on special. Single-price styles unchanged. Product page continues to show the selected color's price with a Sale pill and struck-through regular when that colorway is on special."
 }

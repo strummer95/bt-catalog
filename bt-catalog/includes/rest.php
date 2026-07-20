@@ -261,6 +261,34 @@ function bt_cat_rest_colors_out($r, $cols, $pp) {
     return $out;
 }
 
+
+/**
+ * Effective price range across colorways (for grid cards): min/max of each
+ * color's customer price (sale-aware), plus whether any colorway is on sale.
+ * Override flattens to a single price; legacy rows without per-color costs
+ * fall back to the style-level pair.
+ */
+function bt_cat_price_range($r, $cols, $pp) {
+    $ov = isset($r['retail_override']) && $r['retail_override'] !== null && (float) $r['retail_override'] > 0;
+    $min = null; $max = null; $sale = false;
+    if (!$ov)
+
+        foreach ((array) $cols as $c) {
+            $cost = isset($c['cost']) ? (float) $c['cost'] : 0;
+            if ($cost <= 0) continue;
+            $eff = bt_cat_autoprice($cost);
+            $cs  = isset($c['sale']) ? (float) $c['sale'] : 0;
+            if ($cs > 0 && $cs < $cost) {
+                $sp = bt_cat_autoprice($cs);
+                if ($sp < $eff) { $eff = $sp; $sale = true; }
+            }
+            if ($min === null || $eff < $min) $min = $eff;
+            if ($max === null || $eff > $max) $max = $eff;
+        }
+    if ($min === null) { $min = $max = $pp['price']; $sale = ($pp['was'] !== null); }
+    return array('pmin' => $min, 'pmax' => $max, 'sale' => $sale);
+}
+
 /** Map DB rows to customer-safe list items (cost never leaves the server). */
 function bt_cat_rest_rows_to_items($rows) {
     $popList = bt_cat_popular();
@@ -268,6 +296,8 @@ function bt_cat_rest_rows_to_items($rows) {
     foreach ((array) $rows as $r) {
         $pp    = bt_cat_price_pair($r);
         $cols  = json_decode($r['colors'], true);
+        $cols  = is_array($cols) ? $cols : array();
+        $rng   = bt_cat_price_range($r, $cols, $pp);
         $cols  = is_array($cols) ? $cols : array();
         $pidx  = bt_cat_preferred_color_idx($cols);
         $thumb = (isset($cols[$pidx]['img']) && $cols[$pidx]['img'] !== '') ? $cols[$pidx]['img']
@@ -289,6 +319,9 @@ function bt_cat_rest_rows_to_items($rows) {
             'cat'      => $r['category'],
             'price'    => $pp['price'],
             'was'      => $pp['was'],
+            'pmin'     => $rng['pmin'],
+            'pmax'     => $rng['pmax'],
+            'sale'     => $rng['sale'],
             'colors'   => count($cols),
             'thumb'    => $thumb,
             'popular'  => $pop,
