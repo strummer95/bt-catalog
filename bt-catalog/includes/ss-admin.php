@@ -49,6 +49,16 @@ function bt_cat_ss_page() {
         $syncMsg = 'Sync stopped.';
     }
 
+    // Price refresh start (re-pulls cost/sale/colors for all imported S&S styles).
+    $refMsg = '';
+    if (isset($_POST['bt_cat_refresh_start'])) {
+        check_admin_referer('bt_cat_pull');
+        $res = bt_cat_refresh_start();
+        $refMsg = empty($res['ok'])
+            ? '<span style="color:#b32d2e">' . esc_html($res['error'] ?? 'unknown') . '</span>'
+            : 'Refresh started — ' . (int) $res['queued'] . ' styles queued.';
+    }
+
     // Clear catalog.
     if (isset($_POST['bt_cat_clear'])) {
         check_admin_referer('bt_cat_pull');
@@ -150,6 +160,47 @@ function bt_cat_ss_page() {
                     document.getElementById('bt-sync-total').textContent=p.total;
                     document.getElementById('bt-sync-pct').textContent=p.pct;
                     document.getElementById('bt-sync-run').textContent = p.pending>0 ? ' — running…' : ' — done.';
+                    if(p.pending>0){ setTimeout(tick, 5000); }
+                  })
+                  .catch(function(){ setTimeout(tick, 8000); });
+            }
+            if(active){ setTimeout(tick, 3000); }
+        })();
+        </script>
+
+        <hr style="margin:28px 0">
+        <h2>Price refresh</h2>
+        <p class="description">S&amp;S sale prices rotate constantly, so cached prices go stale. This re-pulls cost, <strong>sale price</strong>, colors, and sizes for every imported S&amp;S style — products stay live the whole time, and your manual price overrides are never touched. <strong>Runs automatically every night at 3am</strong>; use the button to run it now. Same pace as the full sync (~45 styles/min).</p>
+        <?php
+            $refPend   = function_exists('bt_cat_refresh_pending') ? bt_cat_refresh_pending() : 0;
+            $refActive = (bool) wp_next_scheduled(BT_CAT_REFRESH_HOOK);
+            $refLast   = get_option('bt_cat_refresh_last', '');
+        ?>
+        <?php if ($refMsg) echo '<p><strong>' . wp_kses_post($refMsg) . '</strong></p>'; ?>
+        <p id="bt-ref-stat" style="margin:8px 0 12px">
+            <span id="bt-ref-pend"><?php echo (int) $refPend; ?></span> styles pending<span id="bt-ref-run"><?php echo $refActive ? ' — running…' : ''; ?></span>
+            <?php if ($refLast && !$refActive): ?><span style="color:#787c82"> · last completed <?php echo esc_html($refLast); ?></span><?php endif; ?>
+        </p>
+        <form method="post" style="display:inline">
+            <?php wp_nonce_field('bt_cat_pull'); ?>
+            <button type="submit" name="bt_cat_refresh_start" value="1" class="button button-primary" <?php disabled($refActive); ?>>Refresh prices now</button>
+        </form>
+        <script>
+        (function(){
+            var nonce = <?php echo wp_json_encode(wp_create_nonce('bt_cat_tick')); ?>;
+            var ajax  = <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>;
+            var active = <?php echo $refActive ? 'true' : 'false'; ?>;
+            function tick(){
+                var fd = new FormData();
+                fd.append('action','bt_cat_refresh_tick');
+                fd.append('_ajax_nonce',nonce);
+                fetch(ajax,{method:'POST',body:fd,credentials:'same-origin'})
+                  .then(function(r){return r.json();})
+                  .then(function(j){
+                    if(!j || !j.success){return;}
+                    var p=j.data;
+                    document.getElementById('bt-ref-pend').textContent=p.pending;
+                    document.getElementById('bt-ref-run').textContent = p.pending>0 ? ' — running…' : ' — done.';
                     if(p.pending>0){ setTimeout(tick, 5000); }
                   })
                   .catch(function(){ setTimeout(tick, 8000); });

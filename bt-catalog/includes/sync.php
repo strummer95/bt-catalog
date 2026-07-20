@@ -200,3 +200,105 @@ add_action('wp_ajax_bt_cat_tick', function () {
     check_ajax_referer('bt_cat_tick');
     wp_send_json_success(bt_cat_sync_batch());
 });
+
+/* ---- nightly price/data refresh (S&S) -----------------------------------
+   S&S sale prices rotate constantly, and the catalog is a snapshot from the
+   last pull — so sale_cost goes stale the moment a promo starts or ends.
+   This re-pulls cost / sale_cost / colors / sizes for every imported S&S
+   style through the same rate-limited batching (shared bt_cat_lock keeps
+   sync + refresh jointly under the 60-calls/min API cap). Rows stay live
+   the whole time (detail_done is never touched), and manual price
+   overrides are never modified. Runs nightly at ~3am Central; can also be
+   started on demand from the S&S admin page. */
+define('BT_CAT_REFRESH_HOOK', 'bt_cat_refresh_tick');
+define('BT_CAT_REFRESH_DAILY_HOOK', 'bt_cat_refresh_daily');
+
+function bt_cat_refresh_pending() {
+    $q = get_option('bt_cat_refresh_ids', array());
+    return is_array($q) ? count($q) : 0;
+}
+
+/** Queue every imported S&S style and start the minute ticker. */
+function bt_cat_refresh_start() {
+    global $wpdb;
+    $t = bt_cat_table();
+    // Don't fight an active full sync for the API budget.
+    if (wp_next_scheduled(BT_CAT_CRON_HOOK)) {
+        return array('error' => 'A full sync is running — the refresh can start once it finishes.');
+    }
+    $ids = $wpdb->get_col("SELECT id FROM $t WHERE supplier='ss' AND detail_done=1 AND active=1 ORDER BY id ASC");
+    update_option('bt_cat_refresh_ids', array_map('intval', (array) $ids), false);
+    if (!wp_next_scheduled(BT_CAT_REFRESH_HOOK)) {
+        wp_schedule_event(time() + 5, 'bt_cat_minute', BT_CAT_REFRESH_HOOK);
+    }
+    $b = bt_cat_refresh_batch();   // start moving immediately
+    return array('ok' => true, 'queued' => count($ids), 'processed' => $b['processed'], 'pending' => $b['pending']);
+}
+
+/** One refresh batch: re-pull up to $n queued styles, keep the rest for later. */
+function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
+    global $wpdb;
+    $t = bt_cat_table();
+
+    if (get_transient('bt_cat_lock')) {
+        return array('processed' => 0, 'pending' => bt_cat_refresh_pending(), 'active' => (bool) wp_next_scheduled(BT_CAT_REFRESH_HOOK));
+    }
+    set_transient('bt_cat_lock', 1, 55);
+
+    $q = get_option('bt_cat_refresh_ids', array());
+    if (!is_array($q)) $q = array();
+    $take = array_splice($q, 0, $n);
+    $processed = 0;
+
+    foreach ($take as $i => $id) {
+        $row = $wpdb->get_row($wpdb->prepare("SELECT id, supplier_style_id FROM $t WHERE id=%d", (int) $id), ARRAY_A);
+        if (!$row) continue;
+        $red = bt_cat_ss_reduce($row['supplier_style_id']);
+        if (empty($red['ok'])) {
+            if (!empty($red['rate'])) {
+                // Rate limited — put this one and the rest back, resume next minute.
+                array_splice($q, 0, 0, array_slice($take, $i));
+                break;
+            }
+            continue;   // hard failure: skip; the existing cached row stays live
+        }
+        $specs = array();
+        if ($red['weight'] !== null) $specs[] = array('Weight', $red['weight'] . ' oz');
+        $wpdb->update($t, array(
+            'specs'      => wp_json_encode($specs),
+            'colors'     => wp_json_encode(array_values($red['colors'])),
+            'sizes'      => implode(',', $red['sizes']),
+            'cost'       => $red['cost'],
+            'sale_cost'  => $red['sale'],
+            'retail'     => bt_cat_autoprice($red['cost']),
+            'updated_at' => current_time('mysql'),
+        ), array('id' => $row['id']));
+        $processed++;
+    }
+
+    update_option('bt_cat_refresh_ids', array_values($q), false);
+
+    if (empty($q) && wp_next_scheduled(BT_CAT_REFRESH_HOOK)) {
+        wp_clear_scheduled_hook(BT_CAT_REFRESH_HOOK);
+        update_option('bt_cat_refresh_last', current_time('mysql'), false);
+        if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
+    }
+    return array('processed' => $processed, 'pending' => count($q), 'active' => (bool) wp_next_scheduled(BT_CAT_REFRESH_HOOK));
+}
+
+add_action(BT_CAT_REFRESH_HOOK, function () { bt_cat_refresh_batch(); });
+add_action(BT_CAT_REFRESH_DAILY_HOOK, function () { bt_cat_refresh_start(); });
+
+// Self-schedule the nightly kickoff (08:00 UTC = 3am Central) if it's missing.
+add_action('init', function () {
+    if (!wp_next_scheduled(BT_CAT_REFRESH_DAILY_HOOK)) {
+        wp_schedule_event(strtotime('tomorrow 08:00 UTC'), 'daily', BT_CAT_REFRESH_DAILY_HOOK);
+    }
+});
+
+// Admin-page nudge for the refresh (mirrors bt_cat_tick).
+add_action('wp_ajax_bt_cat_refresh_tick', function () {
+    if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
+    check_ajax_referer('bt_cat_tick');
+    wp_send_json_success(bt_cat_refresh_batch());
+});
