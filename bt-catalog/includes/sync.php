@@ -96,12 +96,22 @@ function bt_cat_sync_discover() {
 
         // Insert new styles as "pending"; refresh meta on existing without
         // touching detail_done / pricing / overrides already gathered.
+        // Name/category are what the derived filter columns are read from, so
+        // they get recomputed here too -- otherwise a supplier recategorizing a
+        // style would leave it filed under its old bucket forever.
+        $a = bt_cat_derive_attrs(array(
+            'name'     => (string) ($s['title']        ?? ''),
+            'category' => (string) ($s['baseCategory'] ?? ''),
+        ));
         $sql = "INSERT INTO $t
-                (supplier, supplier_style_id, style_no, brand, name, category, description, detail_done, active, updated_at)
-                VALUES ('ss', %s, %s, %s, %s, %s, %s, 0, 1, %s)
+                (supplier, supplier_style_id, style_no, brand, name, category, description,
+                 bucket, aud, neck, sleeve, closure, detail_done, active, updated_at)
+                VALUES ('ss', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 1, %s)
                 ON DUPLICATE KEY UPDATE
                 style_no=VALUES(style_no), brand=VALUES(brand), name=VALUES(name),
-                category=VALUES(category), description=VALUES(description)";
+                category=VALUES(category), description=VALUES(description),
+                bucket=VALUES(bucket), aud=VALUES(aud), neck=VALUES(neck),
+                sleeve=VALUES(sleeve), closure=VALUES(closure)";
         $wpdb->query($wpdb->prepare($sql, array(
             $styleID,
             (string) ($s['styleName']    ?? ''),
@@ -109,6 +119,7 @@ function bt_cat_sync_discover() {
             (string) ($s['title']        ?? ''),
             (string) ($s['baseCategory'] ?? ''),
             (string) ($s['description']  ?? ''),
+            $a['bucket'], $a['aud'], $a['neck'], $a['sleeve'], $a['closure'],
             current_time('mysql'),
         )));
         $seeded++;
@@ -129,7 +140,7 @@ function bt_cat_sync_batch($n = BT_CAT_BATCH) {
     set_transient('bt_cat_lock', 1, 55);
 
     $rows = $wpdb->get_results(
-        $wpdb->prepare("SELECT id, supplier_style_id FROM $t WHERE detail_done=0 ORDER BY id ASC LIMIT %d", $n),
+        $wpdb->prepare("SELECT id, supplier_style_id, name, category FROM $t WHERE detail_done=0 ORDER BY id ASC LIMIT %d", $n),
         ARRAY_A
     );
     $processed = 0;
@@ -150,7 +161,7 @@ function bt_cat_sync_batch($n = BT_CAT_BATCH) {
         $specs = array();
         if ($red['weight'] !== null) $specs[] = array('Weight', $red['weight'] . ' oz');
 
-        $wpdb->update($t, array(
+        $fields = array(
             'specs'       => wp_json_encode($specs),
             'colors'      => wp_json_encode(array_values($red['colors'])),
             'sizes'       => implode(',', $red['sizes']),
@@ -159,7 +170,17 @@ function bt_cat_sync_batch($n = BT_CAT_BATCH) {
             'retail'      => bt_cat_autoprice($red['cost']),
             'detail_done' => 1,
             'updated_at'  => current_time('mysql'),
-        ), array('id' => $row['id']));
+        );
+        // This is the write that makes a style visible on the storefront, so it
+        // must also fill the derived filter columns -- a row that lands here
+        // with an empty bucket/size_set is invisible to every facet.
+        $fields = array_merge($fields, bt_cat_derive_attrs(array(
+            'name'     => $row['name'],
+            'category' => $row['category'],
+            'sizes'    => $fields['sizes'],
+            'colors'   => $fields['colors'],
+        )));
+        $wpdb->update($t, $fields, array('id' => $row['id']));
         $processed++;
     }
 
@@ -254,7 +275,7 @@ function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
     $processed = 0;
 
     foreach ($take as $i => $id) {
-        $row = $wpdb->get_row($wpdb->prepare("SELECT id, supplier_style_id FROM $t WHERE id=%d", (int) $id), ARRAY_A);
+        $row = $wpdb->get_row($wpdb->prepare("SELECT id, supplier_style_id, name, category FROM $t WHERE id=%d", (int) $id), ARRAY_A);
         if (!$row) continue;
         $red = bt_cat_ss_reduce($row['supplier_style_id']);
         if (empty($red['ok'])) {
@@ -267,7 +288,7 @@ function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
         }
         $specs = array();
         if ($red['weight'] !== null) $specs[] = array('Weight', $red['weight'] . ' oz');
-        $wpdb->update($t, array(
+        $fields = array(
             'specs'      => wp_json_encode($specs),
             'colors'     => wp_json_encode(array_values($red['colors'])),
             'sizes'      => implode(',', $red['sizes']),
@@ -275,7 +296,14 @@ function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
             'sale_cost'  => $red['sale'],
             'retail'     => bt_cat_autoprice($red['cost']),
             'updated_at' => current_time('mysql'),
-        ), array('id' => $row['id']));
+        );
+        $fields = array_merge($fields, bt_cat_derive_attrs(array(
+            'name'     => $row['name'],
+            'category' => $row['category'],
+            'sizes'    => $fields['sizes'],
+            'colors'   => $fields['colors'],
+        )));
+        $wpdb->update($t, $fields, array('id' => $row['id']));
         $processed++;
     }
 

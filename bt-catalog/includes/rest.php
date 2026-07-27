@@ -42,16 +42,120 @@ function bt_cat_family_terms($fam) {
     return isset($map[$fam]) ? $map[$fam] : array(strtolower($fam));
 }
 
+/**
+ * Normalize every filter parameter once, into canonical keys. Both the list
+ * and the facet counts read from this — same input, same interpretation.
+ */
+function bt_cat_read_params($req) {
+    return array(
+        's'        => sanitize_text_field((string) $req->get_param('s')),
+        'brand'    => sanitize_text_field((string) $req->get_param('brand')),
+        'category' => bt_cat_bucket_param((string) $req->get_param('category')),
+        'color'    => sanitize_text_field((string) $req->get_param('color')),
+        'aud'      => bt_cat_attr_key('aud',     (string) $req->get_param('fit')),
+        'neck'     => bt_cat_attr_key('neck',    (string) $req->get_param('neck')),
+        'sleeve'   => bt_cat_attr_key('sleeve',  (string) $req->get_param('sleeve')),
+        'closure'  => bt_cat_attr_key('closure', (string) $req->get_param('closure')),
+        'size'     => bt_cat_size_canon((string) $req->get_param('size')),
+        'quality'  => bt_cat_quality_key((string) $req->get_param('quality')),
+    );
+}
+
+/**
+ * Resolve a `category` parameter to a canonical bucket label. Accepts a bucket
+ * name directly, the Performance pseudo-category, or a raw supplier category
+ * from an older shared link ("Polos/Knits" -> "Polos").
+ */
+function bt_cat_bucket_param($raw) {
+    $raw = sanitize_text_field((string) $raw);
+    if ($raw === '' || $raw === 'Performance') return $raw;
+    $buckets = bt_cat_cat_buckets();
+    if (isset($buckets[$raw])) return $raw;
+    $norm = bt_cat_norm_category($raw);
+    return $norm !== '' ? $norm : $raw;
+}
+
+/** True when no filter or search is active (the featured-by-default case). */
+function bt_cat_params_empty($p) {
+    foreach ($p as $v) { if ($v !== '') return false; }
+    return true;
+}
+
+/**
+ * Build the WHERE clause for a filter set.
+ *
+ * $skip omits ONE filter key — that's how a facet counts its own options.
+ * Counting "Neckline" with the neckline filter still applied would zero out
+ * every sibling the moment you picked one, so each facet is counted against
+ * every OTHER active filter and not itself. Selecting Crew therefore leaves
+ * V-Neck clickable, while Sleeve Length still narrows to what crews offer.
+ *
+ * Returns array('sql' => "...", 'args' => array()).
+ */
+function bt_cat_filter_where($p, $skip = '') {
+    global $wpdb;
+    $where = array('detail_done=1', 'active=1');
+    $args  = array();
+
+    if ($skip !== 's' && $p['s'] !== '') {
+        $like = '%' . $wpdb->esc_like($p['s']) . '%';
+        $where[] = "(brand LIKE %s OR style_no LIKE %s OR name LIKE %s)";
+        array_push($args, $like, $like, $like);
+    }
+    if ($skip !== 'brand' && $p['brand'] !== '') {
+        // fuzzy brand match (BELLA + CANVAS vs Bella+Canvas)
+        $where[] = "REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','') = %s";
+        $args[]  = bt_cat_brand_norm($p['brand']);
+    }
+    if ($skip !== 'category' && $p['category'] !== '') {
+        if ($p['category'] === 'Performance') {
+            $where[] = "perf = 1";
+        } else {
+            // Exact match on the derived bucket column. This used to expand the
+            // bucket back into LIKE substrings, which quietly matched the wrong
+            // rows -- '%tshirt%' is a substring of "SweaTSHIRTs", so every
+            // sweatshirt was being returned under T-Shirts while the facet
+            // count (bucket priority, fleece before tees) disagreed. One
+            // derived value, written once at import, keeps them identical.
+            $where[] = "bucket = %s";
+            $args[]  = $p['category'];
+        }
+    }
+    if ($skip !== 'color' && $p['color'] !== '') {
+        // color_fams is the derived per-colorway family list; the LIKE fallback
+        // covers rows imported before the column existed (self-heals on refresh).
+        $terms = bt_cat_family_terms($p['color']);
+        $ors   = array();
+        foreach ($terms as $term) { $ors[] = "colors LIKE %s"; }
+        $where[] = "(FIND_IN_SET(%s, color_fams) > 0 OR (color_fams = '' AND (" . implode(' OR ', $ors) . ")))";
+        $args[]  = $p['color'];
+        foreach ($terms as $term) { $args[] = '%' . $wpdb->esc_like($term) . '%'; }
+    }
+    // Derived single-value columns: one bound equality each.
+    foreach (array('aud', 'neck', 'sleeve', 'closure') as $k) {
+        if ($skip === $k || $p[$k] === '') continue;
+        $where[] = "$k = %s";
+        $args[]  = $p[$k];
+    }
+    if ($skip !== 'size' && $p['size'] !== '') {
+        $where[] = "FIND_IN_SET(%s, size_set) > 0";
+        $args[]  = $p['size'];
+    }
+    if ($skip !== 'quality' && $p['quality'] !== '') {
+        $where[] = "tier = %s";
+        $args[]  = $p['quality'];
+    }
+
+    return array('sql' => implode(' AND ', $where), 'args' => $args);
+}
+
 function bt_cat_rest_list($req) {
     global $wpdb;
     $t = bt_cat_table();
 
-    $s     = sanitize_text_field((string) $req->get_param('s'));
-    $brand = sanitize_text_field((string) $req->get_param('brand'));
-    $cat   = sanitize_text_field((string) $req->get_param('category'));
-    $fit   = sanitize_text_field((string) $req->get_param('fit'));
-    $color = sanitize_text_field((string) $req->get_param('color'));
-    $quality = sanitize_text_field((string) $req->get_param('quality'));
+    $p     = bt_cat_read_params($req);
+    $s     = $p['s'];
+    $cat   = $p['category'];
     $sort  = sanitize_text_field((string) $req->get_param('sort'));
     if (!in_array($sort, array('price_asc', 'price_desc', 'name_asc', 'brand_asc'), true)) $sort = '';
     $page  = max(1, (int) $req->get_param('page'));
@@ -60,7 +164,7 @@ function bt_cat_rest_list($req) {
 
     // Featured: default page (no search/filter) leads with the configured styles,
     // brand-aware so "Gildan 5000" doesn't collide with another brand's 5000.
-    if ($s === '' && $brand === '' && $cat === '' && $color === '' && $fit === '' && $quality === '' && $sort === '') {
+    if (bt_cat_params_empty($p) && $sort === '') {
         $resolved = bt_cat_featured_resolve();
         if (!empty($resolved)) {
             $total    = count($resolved);
@@ -76,68 +180,9 @@ function bt_cat_rest_list($req) {
         }
     }
 
-    $where = array("detail_done=1", "active=1");
-    $args  = array();
-
-    if ($s !== '') {
-        $like = '%' . $wpdb->esc_like($s) . '%';
-        $where[] = "(brand LIKE %s OR style_no LIKE %s OR name LIKE %s)";
-        array_push($args, $like, $like, $like);
-    }
-    if ($brand !== '') {
-        // fuzzy brand match (BELLA + CANVAS vs Bella+Canvas)
-        $nb = preg_replace('/[^a-z0-9]/', '', strtolower($brand));
-        $where[] = "REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','') = %s";
-        $args[] = $nb;
-    }
-    if ($cat !== '') {
-        if ($cat === 'Performance') {
-            $where[] = "perf = 1";
-        } else {
-            $buckets = bt_cat_cat_buckets();
-            if (isset($buckets[$cat])) {
-                $ors = array();
-                foreach ($buckets[$cat] as $sub) { $ors[] = "category LIKE %s"; $args[] = '%' . $wpdb->esc_like($sub) . '%'; }
-                $where[] = '(' . implode(' OR ', $ors) . ')';
-            } else {
-                $where[] = "category = %s";
-                $args[] = $cat;
-            }
-        }
-    }
-    if ($color !== '') {
-        $terms = bt_cat_family_terms($color);
-        $ors = array();
-        foreach ($terms as $term) { $ors[] = "colors LIKE %s"; $args[] = '%' . $wpdb->esc_like($term) . '%'; }
-        if ($ors) $where[] = '(' . implode(' OR ', $ors) . ')';
-    }
-    if ($fit !== '') {
-        // Bound LIKE params (never literal % in the prepared SQL).
-        switch (bt_cat_fit_key($fit)) {
-            case 'women':
-                $where[] = "(category LIKE %s OR category LIKE %s)";
-                array_push($args, '%women%', '%ladies%');
-                break;
-            case 'girls':
-                $where[] = "(category LIKE %s)";
-                $args[] = '%girl%';
-                break;
-            case 'youth':
-                $where[] = "(category LIKE %s OR category LIKE %s OR category LIKE %s OR category LIKE %s)";
-                array_push($args, '%youth%', '%boys%', '%infant%', '%toddler%');
-                break;
-            case 'unisex': // none of the above
-                $where[] = "(category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s AND category NOT LIKE %s)";
-                array_push($args, '%women%', '%ladies%', '%girl%', '%youth%', '%boys%', '%infant%', '%toddler%');
-                break;
-        }
-    }
-    if ($quality !== '' && function_exists('bt_cat_quality_key')) {
-        $q = bt_cat_quality_key($quality);
-        if ($q !== '') { $where[] = "tier = %s"; $args[] = $q; }
-    }
-
-    $wsql = implode(' AND ', $where);
+    $w    = bt_cat_filter_where($p);
+    $wsql = $w['sql'];
+    $args = $w['args'];
 
     $total = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $t WHERE $wsql", $args));
 
@@ -357,55 +402,135 @@ function bt_cat_rest_item($req) {
     );
 }
 
-/** Fit key for a raw category string (PHP mirror of bt_cat_fit_clause). */
-function bt_cat_fit_of($category) {
-    $c = strtolower((string) $category);
-    if (strpos($c, 'women') !== false || strpos($c, 'ladies') !== false) return 'women';
-    if (strpos($c, 'girl') !== false) return 'girls';
-    if (strpos($c, 'youth') !== false || strpos($c, 'boy') !== false || strpos($c, 'infant') !== false || strpos($c, 'toddler') !== false) return 'youth';
-    return 'unisex';
+/** Drop the cached facet payloads (call after any catalog write).
+    Counts now vary by filter combination, so instead of deleting one key we
+    bump a generation number that's baked into every cache key — the stale
+    entries simply expire on their own. */
+function bt_cat_facets_flush() {
+    delete_transient('bt_cat_facets_v2');   // legacy key from before counts existed
+    update_option('bt_cat_facet_gen', (int) get_option('bt_cat_facet_gen', 0) + 1);
 }
 
-/** Drop the cached facet payload (call after any catalog write). */
-function bt_cat_facets_flush() { delete_transient('bt_cat_facets_v2'); }
-
-function bt_cat_rest_facets() {
-    $cached = get_transient('bt_cat_facets_v2');
-    if (is_array($cached)) return $cached;
-
+/** One grouped count, keyed by a single column, under every filter but its own. */
+function bt_cat_facet_counts($col, $p, $skip) {
     global $wpdb;
     $t = bt_cat_table();
-    $brands  = $wpdb->get_col("SELECT DISTINCT brand FROM $t WHERE detail_done=1 AND active=1 AND brand<>'' ORDER BY brand ASC");
-    $rawCats = $wpdb->get_col("SELECT DISTINCT category FROM $t WHERE detail_done=1 AND active=1 AND category<>''");
+    $w = bt_cat_filter_where($p, $skip);
+    $sql = "SELECT $col AS v, COUNT(*) AS n FROM $t WHERE {$w['sql']} GROUP BY $col";
+    $rows = $w['args'] ? $wpdb->get_results($wpdb->prepare($sql, $w['args']), ARRAY_A)
+                       : $wpdb->get_results($sql, ARRAY_A);
+    $out = array();
+    foreach ((array) $rows as $r) {
+        $v = (string) $r['v'];
+        if ($v === '') continue;              // undetermined never becomes an option
+        $out[$v] = (int) $r['n'];
+    }
+    return $out;
+}
 
-    // Categories -> consolidated buckets.
-    $seen = array();
-    foreach ($rawCats as $c) { $b = bt_cat_norm_category($c); if ($b !== '') $seen[$b] = true; }
-    $cats = array_keys($seen);
-    sort($cats);
+/**
+ * Counts for a comma-list column (size_set, color_fams). One scan, tallied in
+ * PHP — a COUNT per possible value would mean 30+ full scans per facet load.
+ */
+function bt_cat_facet_counts_set($col, $p, $skip) {
+    global $wpdb;
+    $t = bt_cat_table();
+    $w = bt_cat_filter_where($p, $skip);
+    $sql = "SELECT $col AS v, COUNT(*) AS n FROM $t WHERE {$w['sql']} AND $col <> '' GROUP BY $col";
+    $rows = $w['args'] ? $wpdb->get_results($wpdb->prepare($sql, $w['args']), ARRAY_A)
+                       : $wpdb->get_results($sql, ARRAY_A);
+    $out = array();
+    foreach ((array) $rows as $r) {
+        $n = (int) $r['n'];
+        foreach (explode(',', (string) $r['v']) as $tok) {
+            if ($tok === '') continue;
+            if (!isset($out[$tok])) $out[$tok] = 0;
+            $out[$tok] += $n;
+        }
+    }
+    return $out;
+}
 
-    // Fits derived from the SAME distinct categories — no extra queries.
-    $fitSeen = array();
-    foreach ($rawCats as $c) { $fitSeen[bt_cat_fit_of($c)] = true; }
-    $fits = array();
-    foreach (bt_cat_fit_labels() as $label) {
-        if (!empty($fitSeen[bt_cat_fit_key($label)])) $fits[] = $label;
+/** Shape one facet for the client: ordered [{k,v,n}], zero-count values dropped. */
+function bt_cat_facet_out($counts, $order, $labels = null) {
+    $out = array();
+    foreach ($order as $k) {
+        if (empty($counts[$k])) continue;
+        $out[] = array(
+            'k' => (string) $k,
+            'v' => $labels === null ? (string) $k : (isset($labels[$k]) ? $labels[$k] : (string) $k),
+            'n' => (int) $counts[$k],
+        );
+    }
+    return $out;
+}
+
+/**
+ * Facet lists WITH counts, computed against the currently active filters.
+ *
+ * Every value returned has at least one matching product, and the storefront
+ * hides any group left with fewer than two options — so browsing crewneck
+ * sweatshirts never offers a Short Sleeve option that would return nothing,
+ * and a hat never shows a Neckline group at all.
+ */
+function bt_cat_rest_facets($req) {
+    global $wpdb;
+    $t = bt_cat_table();
+
+    $p   = bt_cat_read_params($req);
+    $gen = (int) get_option('bt_cat_facet_gen', 0);
+    $key = 'bt_cat_fct_' . $gen . '_' . md5(wp_json_encode($p));
+    $cached = get_transient($key);
+    if (is_array($cached)) return $cached;
+
+    // --- brands (raw values, alphabetical) ---
+    $brandCounts = bt_cat_facet_counts('brand', $p, 'brand');
+    $brandOrder  = array_keys($brandCounts);
+    sort($brandOrder);
+    $brands = bt_cat_facet_out($brandCounts, $brandOrder);
+
+    // --- categories (derived bucket column; same value the list filters on) ---
+    $catCounts = bt_cat_facet_counts('bucket', $p, 'category');
+    // Performance is a cross-cutting attribute shown alongside the categories.
+    $wp2   = bt_cat_filter_where($p, 'category');
+    $psql  = "SELECT COUNT(*) FROM $t WHERE {$wp2['sql']} AND perf = 1";
+    $perfN = (int) ($wp2['args'] ? $wpdb->get_var($wpdb->prepare($psql, $wp2['args']))
+                                 : $wpdb->get_var($psql));
+    if ($perfN > 0) $catCounts['Performance'] = $perfN;
+    $catOrder = array_keys($catCounts);
+    sort($catOrder);
+    $cats = bt_cat_facet_out($catCounts, $catOrder);
+
+    // --- derived single-value attributes ---
+    $defs = bt_cat_attr_defs();
+    $attr = array();
+    foreach ($defs as $facet => $d) {
+        $counts = bt_cat_facet_counts($d['col'], $p, $facet);
+        $attr[$facet] = bt_cat_facet_out($counts, array_keys($d['values']), $d['values']);
     }
 
-    // Quality tiers present (one cheap grouped count, mirrors the list base).
-    $tierRows = $wpdb->get_results("SELECT tier, COUNT(*) n FROM $t WHERE detail_done=1 AND active=1 AND tier<>'' GROUP BY tier", ARRAY_A);
-    $tierHas = array();
-    foreach ((array) $tierRows as $tr) { $tierHas[strtolower($tr['tier'])] = (int) $tr['n']; }
-    $quals = array();
-    foreach (bt_cat_quality_labels() as $label) {
-        if (!empty($tierHas[bt_cat_quality_key($label)])) $quals[] = $label;
-    }
+    // --- sizes + color families (comma-list columns) ---
+    $sizes  = bt_cat_facet_out(bt_cat_facet_counts_set('size_set', $p, 'size'), bt_cat_size_order());
+    $colors = bt_cat_facet_out(bt_cat_facet_counts_set('color_fams', $p, 'color'), bt_cat_color_families());
 
-    $perfN = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t WHERE detail_done=1 AND active=1 AND perf=1");
-    if ($perfN > 0) { $cats[] = 'Performance'; sort($cats); }
+    // --- quality tiers ---
+    $tierCounts = bt_cat_facet_counts('tier', $p, 'quality');
+    $qualLabels = array();
+    foreach (bt_cat_quality_labels() as $label) $qualLabels[bt_cat_quality_key($label)] = $label;
+    $quals = bt_cat_facet_out($tierCounts, array_keys($qualLabels), $qualLabels);
 
-    $out = array('brands' => $brands, 'categories' => $cats, 'fits' => $fits, 'qualities' => $quals);
-    set_transient('bt_cat_facets_v2', $out, 10 * MINUTE_IN_SECONDS);
+    $out = array(
+        'brands'     => $brands,
+        'categories' => $cats,
+        'fits'       => $attr['aud'],
+        'necks'      => $attr['neck'],
+        'sleeves'    => $attr['sleeve'],
+        'closures'   => $attr['closure'],
+        'sizes'      => $sizes,
+        'colors'     => $colors,
+        'qualities'  => $quals,
+    );
+    set_transient($key, $out, 10 * MINUTE_IN_SECONDS);
     return $out;
 }
 
@@ -435,33 +560,11 @@ function bt_cat_cat_buckets() {
     );
 }
 
-/* ---- Fit (Unisex/Men's, Women's, Youth, Girls) ----
-   Derived from the raw category so it needs no schema change. Lets us strip
-   gender/age out of the category list above and offer it as its own filter. */
-function bt_cat_fit_labels() {
-    return array("Unisex / Men's", "Women's", "Youth", "Girls");
-}
-function bt_cat_fit_key($fit) {
-    $f = strtolower((string) $fit);
-    if (strpos($f, 'women') !== false || strpos($f, 'ladies') !== false) return 'women';
-    if (strpos($f, 'girl') !== false) return 'girls';
-    if (strpos($f, 'youth') !== false || strpos($f, 'boy') !== false) return 'youth';
-    if (strpos($f, 'unisex') !== false || strpos($f, 'men') !== false) return 'unisex';
-    return '';
-}
-/** SQL condition (static literals — safe to inline) for a fit selection. */
-function bt_cat_fit_clause($fit) {
-    $women = "(category LIKE '%women%' OR category LIKE '%ladies%')";
-    $girls = "(category LIKE '%girl%')";
-    $youth = "(category LIKE '%youth%' OR category LIKE '%boys%' OR category LIKE '%infant%' OR category LIKE '%toddler%')";
-    switch (bt_cat_fit_key($fit)) {
-        case 'women':  return $women;
-        case 'girls':  return $girls;
-        case 'youth':  return $youth;
-        case 'unisex': return "(NOT $women AND NOT $girls AND NOT $youth)"; // unisex/men's = none of the above
-    }
-    return '';
-}
+/* Gender/age used to be derived from the raw category on every query (seven
+   NOT LIKEs for "unisex"). It now lives in the `aud` column, derived once at
+   import in attrs.php — see bt_cat_attr_defs()['aud']. The old bt_cat_fit_*
+   helpers are gone; bt_cat_attr_key('aud', ...) still accepts the old labels
+   so shared /catalog/?fit=Women%27s links keep working. */
 function bt_cat_norm_category($raw) {
     $low = strtolower((string) $raw);
     foreach (bt_cat_cat_buckets() as $label => $subs) {

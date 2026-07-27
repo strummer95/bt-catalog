@@ -1,6 +1,28 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.14.2**.
+> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.22.0**.
 
-# BT Catalog — Project Handoff (current as of v0.14.2)
+# BT Catalog — Project Handoff (current as of v0.22.0)
+
+## v0.22.0 — Faceted filters (gender/age, neckline, sleeve, style, size) + zero-result suppression
+
+**New `includes/attrs.php`.** Suppliers give us a garment type and a marketing title and nothing else, so every shopping dimension is derived ONCE at import into real columns (same pattern as tier/perf): `bucket`, `aud`, `neck`, `sleeve`, `closure`, `size_set`, `color_fams`. An attribute that can't be determined stays `''`, and an empty value is never offered as a filter — that alone is what makes "no Sleeve Length on a hat" work.
+- Detection order: name + category are authoritative (description is marketing copy and stays out of it). Bucket gate runs FIRST, then explicit tokens, then a type default (unmarked tee = short sleeve crew; unmarked hoodie = long sleeve pullover). Layer pieces (pullover/zip) force long sleeve regardless of bucket.
+- `bt_cat_attr_word()` for stems that are substrings of other words — plain `strpos('snap')` was tagging "**Snap**back Trucker Cap" as a snap-front garment.
+- Sizes canonicalized (`XXL`/`2X` → `2XL`, `Youth L` → `YL`, `12 Months` → `12M`, `One Size` → `OSFA`); unrecognized tokens (numeric waists, "5/6") are stored but never offered as a chip. Order comes from `bt_cat_size_order()`.
+- `bt_cat_apply_attrs()` backfills, grouped by identical attribute set so 6.5k rows cost dozens of queries not thousands. Runs via `bt_cat_attrs_ensure()` on the version-gated **init** hook (NOT admin_init like tiers — these columns are what the storefront filters on, so waiting for an admin page load would show visitors an empty rail).
+
+**REST.** `bt_cat_read_params()` normalizes every filter once; `bt_cat_filter_where($p, $skip)` builds the WHERE. The list and the facet counts both call it — counts cannot drift from results by construction. `$skip` omits one filter so a facet never narrows itself (picking Crew leaves V-Neck clickable; Sleeve still narrows to what crews offer).
+- `/catalog/facets` now takes the same filter params and returns `[{k,v,n}]` per group with zero-count values already dropped. Cached per filter combination; `bt_cat_facets_flush()` bumps option `bt_cat_facet_gen` (baked into the key) instead of deleting one transient.
+- New params on `/catalog`: `neck`, `sleeve`, `closure`, `size`. `fit` still accepts the old labels (`Women's`, `Unisex / Men's`) so shared links survive.
+
+**BUG FIXED — sweatshirts were showing under T-Shirts.** The category filter expanded a bucket into LIKE substrings while the facet used first-match-wins bucket priority: `LIKE '%tshirt%'` is a substring of "Swea**tshirt**s", so every sweatshirt came back under T-Shirts while the count disagreed. Both now read the derived `bucket` column. `bt_cat_bucket_param()` maps a legacy raw category ("Polos/Knits") to its bucket.
+
+**BUG FIXED — featured page priced off missing columns.** `bt_cat_featured_resolve()` didn't SELECT `cost`/`sale_cost`/`supplier`, which `rows_to_items()` and `price_range()` both read, so the default page computed its colorway range from an undefined cost and dropped the SS/SM/EG tag.
+
+**BUG FIXED — three write paths bypassed `bt_cat_upsert()`** and so never populated derived columns: `bt_cat_sync_seed()` (INSERT), `bt_cat_sync_batch()` (the UPDATE that sets `detail_done=1` and makes a style visible), and `bt_cat_refresh_batch()`. A row landing there with an empty `bucket` is invisible to every facet. Both batch SELECTs now carry `name, category` and merge `bt_cat_derive_attrs()` into the update — no extra queries.
+
+**Storefront.** One `GROUPS` config drives both the header dropdowns and the sidebar rail, so a filter can't exist in one and not the other. Options show a live count; a group renders only when it has 2+ options or exactly one that's currently selected. Empty groups hide their whole `.cm` / `.fsec`. Filter clicks go through one delegated `[data-f][data-v]` handler on `#btcat-root` (survives re-render). `qs()` builds the query for the grid and the facets identically. `facetSeq` drops out-of-order facet responses. Sidebar order: Categories, Gender / Age, Neckline, Sleeve Length, Style, Size, Colors, Brands, Quality. `.cmenus` margin-left dropped to 0 — nine menus need the full row.
+
+**Behavior changes to know:** "Fit" is relabeled **Gender / Age**, and **Youth no longer includes infant/toddler** (own "Toddler & Infant" value). "Style" = closure (Pullover / Quarter-Half-Zip / Full-Zip / Snap / Button), only populated for fleece/outerwear/wovens so it self-hides on tees.
 
 ## v0.12.0 — Quality filter (Good/Better/Best)
 - New `includes/tiers.php`: static style#→tier map extracted from the 7 SanMar Navigator guides (Tee, Polo, Sweatshirt, Outerwear, Wovens, Headwear, Bags). 647 styles (235 good / 208 better / 204 best). Edit the $good/$better/$best lists + bump version to change tiers.

@@ -8,7 +8,7 @@
     ['Red','#b3132a'],['Green','#1f7a44'],['Yellow','#e8a417'],['Orange','#e8601c'],
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
-  var F = { s:'', brand:'', category:'', fit:'', color:'', quality:'', sort:'', page:1 };
+  var F = { s:'', brand:'', category:'', fit:'', neck:'', sleeve:'', closure:'', size:'', color:'', quality:'', sort:'', page:1 };
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
@@ -21,6 +21,10 @@
     if (F.brand)    q.push('brand=' + encodeURIComponent(F.brand));
     if (F.category) q.push('category=' + encodeURIComponent(F.category));
     if (F.fit)      q.push('fit=' + encodeURIComponent(F.fit));
+    if (F.neck)     q.push('neck=' + encodeURIComponent(F.neck));
+    if (F.sleeve)   q.push('sleeve=' + encodeURIComponent(F.sleeve));
+    if (F.closure)  q.push('closure=' + encodeURIComponent(F.closure));
+    if (F.size)     q.push('size=' + encodeURIComponent(F.size));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
     if (F.sort)     q.push('sort=' + encodeURIComponent(F.sort));
@@ -36,6 +40,10 @@
     F.brand    = p.get('brand') || '';
     F.category = p.get('category') || '';
     F.fit      = p.get('fit') || '';
+    F.neck     = p.get('neck') || '';
+    F.sleeve   = p.get('sleeve') || '';
+    F.closure  = p.get('closure') || '';
+    F.size     = p.get('size') || '';
     F.color    = p.get('color') || '';
     F.quality  = p.get('quality') || '';
     F.sort     = p.get('sort') || '';
@@ -67,7 +75,11 @@
       '<nav class="cmenus">' +
         '<div class="cm"><span class="cmlabel">Brands <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mBrands"></div></div>' +
         '<div class="cm"><span class="cmlabel">Categories <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mCats"></div></div>' +
-        '<div class="cm"><span class="cmlabel">Fit <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mFit"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Gender / Age <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mFit"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Neckline <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mNeck"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Sleeve <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mSleeve"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Style <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mClosure"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Size <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mSize"></div></div>' +
         '<div class="cm"><span class="cmlabel">Colors <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mColors"></div></div>' +
         '<div class="cm"><span class="cmlabel">Quality <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mQuality"></div></div>' +
       '</nav>' +
@@ -76,7 +88,11 @@
     '<div class="wrap shell">' +
       '<aside class="btside" id="btSide">' +
         '<div class="fsec collapsed"><div class="fhead">Categories</div><div class="fbody" id="fCats"></div></div>' +
-        '<div class="fsec collapsed"><div class="fhead">Fit</div><div class="fbody" id="fFit"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Gender / Age</div><div class="fbody" id="fFit"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Neckline</div><div class="fbody" id="fNeck"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Sleeve Length</div><div class="fbody" id="fSleeve"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Style</div><div class="fbody" id="fClosure"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Size</div><div class="fbody fsizes" id="fSize"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
@@ -114,95 +130,157 @@
   function toggleMenu(cm){ var o = cm.classList.contains('open'); closeMenus(); if(!o) cm.classList.add('open'); }
   function closeMenus(){ root.querySelectorAll('.cm.open').forEach(function(e){ e.classList.remove('open'); }); }
 
+  /* ---------- facets ----------
+     One config drives both the header dropdowns and the sidebar rail, so a
+     filter can never exist in one place and not the other. The server returns
+     [{k,v,n}] per group with every zero-count value already dropped; we render
+     what's left and hide any group that has nothing useful to offer. */
+  var GROUPS = [
+    { key:'category', src:'categories', menu:'mCats',    side:'fCats'    },
+    { key:'fit',      src:'fits',       menu:'mFit',     side:'fFit'     },
+    { key:'neck',     src:'necks',      menu:'mNeck',    side:'fNeck'    },
+    { key:'sleeve',   src:'sleeves',    menu:'mSleeve',  side:'fSleeve'  },
+    { key:'closure',  src:'closures',   menu:'mClosure', side:'fClosure' },
+    { key:'size',     src:'sizes',      menu:'mSize',    side:'fSize'    },
+    { key:'color',    src:'colors',     menu:'mColors',  side:'fColors', swatch:true },
+    { key:'brand',    src:'brands',     menu:'mBrands',  side:'fBrands', cols:true   },
+    { key:'quality',  src:'qualities',  menu:'mQuality', side:'fQuality' }
+  ];
+  var FAMHEX = {};
+  FAMILIES.forEach(function(f){ FAMHEX[f[0]] = f[1]; });
+  var LBL = {};          // key -> { value : display label } for chips
+  var facetSeq = 0;      // drops out-of-order facet responses
+
+  function famDot(v){
+    var hex = FAMHEX[v] || '#ccc';
+    return '<span class="cdot" style="background:' + hex + '"></span>';
+  }
+  function countTag(n){ return '<i class="fn">' + n + '</i>'; }
+
+  // Which section (.cm or .fsec) an element lives in, so we can hide it whole.
+  function hostOf(el, sel){ return el ? el.closest(sel) : null; }
+
+  function renderGroup(g, items){
+    var el, i;
+    LBL[g.key] = {};
+    for (i = 0; i < items.length; i++) LBL[g.key][items[i].k] = items[i].v;
+
+    // A group is worth showing when it can actually change the result set:
+    // two or more options, or one that's currently selected (so it can be
+    // switched off from the rail as well as the chip).
+    var show = items.length > 1 || (items.length === 1 && F[g.key] !== '');
+
+    var menuHtml, sideHtml;
+    if (g.cols) {
+      var ncol = window.innerWidth < 600 ? 2 : (window.innerWidth < 900 ? 3 : 5);
+      var per = Math.ceil(items.length / ncol) || 1, out = '';
+      for (var ci = 0; ci < ncol; ci++) {
+        var slice = items.slice(ci * per, (ci + 1) * per);
+        if (!slice.length) continue;
+        out += '<div class="brandcol">' + slice.map(function(x){
+          return '<div class="megai" data-f="' + g.key + '" data-v="' + esc(x.k) + '">' + esc(x.v) + countTag(x.n) + '</div>';
+        }).join('') + '</div>';
+      }
+      menuHtml = '<div class="mega megabrands">' + out + '</div>';
+    } else {
+      menuHtml = '<div class="mega"><div class="megacol">' + items.map(function(x){
+        return '<div class="megai' + (g.swatch ? ' colori' : '') + '" data-f="' + g.key + '" data-v="' + esc(x.k) + '">' +
+               (g.swatch ? famDot(x.k) : '') + esc(x.v) + countTag(x.n) + '</div>';
+      }).join('') + '</div></div>';
+    }
+    sideHtml = items.map(function(x){
+      return '<div class="fitem' + (g.swatch ? ' fcolor' : '') + '" data-f="' + g.key + '" data-v="' + esc(x.k) + '">' +
+             (g.swatch ? famDot(x.k) : '') + esc(x.v) + countTag(x.n) + '</div>';
+    }).join('');
+
+    el = document.getElementById(g.menu);
+    if (el) { el.innerHTML = menuHtml; var cm = hostOf(el, '.cm'); if (cm) cm.style.display = show ? '' : 'none'; }
+    el = document.getElementById(g.side);
+    if (el) { el.innerHTML = sideHtml; var fs = hostOf(el, '.fsec'); if (fs) fs.style.display = show ? '' : 'none'; }
+  }
+
+  // Facets are recomputed against the ACTIVE filters, which is what makes
+  // impossible combinations disappear instead of returning "No styles match".
   function loadFacets(){
-    api('catalog/facets').then(function(f){
-      var b = (f && f.brands) || [], c = (f && f.categories) || [], fits = (f && f.fits) || [], quals = (f && f.qualities) || [];
-      var bcols = (function(){
-        var n = b.length, ncol = window.innerWidth < 600 ? 2 : (window.innerWidth < 900 ? 3 : 5);
-        var per = Math.ceil(n / ncol) || 1, out = '';
-        for (var ci = 0; ci < ncol; ci++) {
-          var slice = b.slice(ci * per, (ci + 1) * per);
-          if (!slice.length) continue;
-          out += '<div class="brandcol">' + slice.map(function(x){ return '<div class="megai" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') + '</div>';
-        }
-        return out;
-      })();
-      document.getElementById('mBrands').innerHTML = '<div class="mega megabrands">' + bcols + '</div>';
-      document.getElementById('mCats').innerHTML =
-        '<div class="mega"><div class="megacol">' +
-        c.map(function(x){ return '<div class="megai" data-cat="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
-        '</div></div>';
-      document.getElementById('mFit').innerHTML =
-        '<div class="mega"><div class="megacol">' +
-        fits.map(function(x){ return '<div class="megai" data-fit="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
-        '</div></div>';
-      document.getElementById('mColors').innerHTML =
-        '<div class="mega"><div class="megacol">' +
-        FAMILIES.map(function(fm){ return '<div class="megai colori" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('') +
-        '</div></div>';
-      document.getElementById('mQuality').innerHTML =
-        '<div class="mega"><div class="megacol">' +
-        quals.map(function(x){ return '<div class="megai" data-quality="'+esc(x)+'">'+esc(x)+'</div>'; }).join('') +
-        '</div></div>';
-
-      // sidebar lists (same data attrs as the header menus -> bound together below)
-      var sCats = document.getElementById('fCats');
-      var sCols = document.getElementById('fColors');
-      var sBr   = document.getElementById('fBrands');
-      if (sCats) sCats.innerHTML = c.map(function(x){ return '<div class="fitem" data-cat="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
-      var sFit = document.getElementById('fFit');
-      if (sFit) sFit.innerHTML = fits.map(function(x){ return '<div class="fitem" data-fit="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
-      var sQual = document.getElementById('fQuality');
-      if (sQual) sQual.innerHTML = quals.map(function(x){ return '<div class="fitem" data-quality="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
-      if (sBr)   sBr.innerHTML   = b.map(function(x){ return '<div class="fitem" data-brand="'+esc(x)+'">'+esc(x)+'</div>'; }).join('');
-      if (sCols) sCols.innerHTML = FAMILIES.map(function(fm){ return '<div class="fitem fcolor" data-color="'+esc(fm[0])+'"><span class="cdot" style="background:'+fm[1]+'"></span>'+esc(fm[0])+'</div>'; }).join('');
-
-      root.querySelectorAll('[data-brand]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('brand', el.getAttribute('data-brand')); }); });
-      root.querySelectorAll('[data-cat]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('category', el.getAttribute('data-cat')); }); });
-      root.querySelectorAll('[data-color]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('color', el.getAttribute('data-color')); }); });
-      root.querySelectorAll('[data-fit]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('fit', el.getAttribute('data-fit')); }); });
-      root.querySelectorAll('[data-quality]').forEach(function(el){ el.addEventListener('click', function(){ setFilter('quality', el.getAttribute('data-quality')); }); });
+    var seq = ++facetSeq;
+    api('catalog/facets' + qs()).then(function(f){
+      if (seq !== facetSeq) return;              // a newer request already answered
+      f = f || {};
+      GROUPS.forEach(function(g){ renderGroup(g, (f[g.src] || [])); });
+      renderActive();                            // chips pick up real labels
       markActive();
     });
   }
 
+  /* ---------- filter state ---------- */
+  // Shared query string for both the list and the facet counts — one builder,
+  // so counts can never be computed against a different filter set than results.
+  function qs(extra){
+    var q = [];
+    if (F.s)        q.push('s=' + encodeURIComponent(F.s));
+    if (F.brand)    q.push('brand=' + encodeURIComponent(F.brand));
+    if (F.category) q.push('category=' + encodeURIComponent(F.category));
+    if (F.fit)      q.push('fit=' + encodeURIComponent(F.fit));
+    if (F.neck)     q.push('neck=' + encodeURIComponent(F.neck));
+    if (F.sleeve)   q.push('sleeve=' + encodeURIComponent(F.sleeve));
+    if (F.closure)  q.push('closure=' + encodeURIComponent(F.closure));
+    if (F.size)     q.push('size=' + encodeURIComponent(F.size));
+    if (F.color)    q.push('color=' + encodeURIComponent(F.color));
+    if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
+    if (extra) q = q.concat(extra);
+    return q.length ? ('?' + q.join('&')) : '';
+  }
+  function anyFilter(){
+    return !!(F.s || F.brand || F.category || F.fit || F.neck || F.sleeve ||
+              F.closure || F.size || F.color || F.quality || F.sort);
+  }
+
   function setFilter(key, val){
     F[key] = (F[key] === val) ? '' : val;  // toggle
-    F.page = 1; closeMenus(); renderActive(); syncURL(); loadGrid();
+    F.page = 1; closeMenus(); renderActive(); syncURL(); loadGrid(); loadFacets();
+  }
+  function clearFilter(key){
+    F[key] = ''; F.page = 1; renderActive(); syncURL(); loadGrid(); loadFacets();
+  }
+  function chipLabel(key, val){
+    return (LBL[key] && LBL[key][val]) ? LBL[key][val] : val;
   }
   function renderActive(){
     var bits = [];
-    ['brand','category','fit','color','quality'].forEach(function(k){
-      if (F[k]) bits.push('<span class="chip" data-clear="'+k+'" style="display:inline-block;background:#f1f1fb;color:#27267e;border-radius:20px;padding:4px 12px;font-size:13px;margin-left:8px;cursor:pointer">'+esc(F[k])+' \u00d7</span>');
+    GROUPS.forEach(function(g){
+      if (!F[g.key]) return;
+      bits.push('<span class="chip" data-clear="' + g.key + '">' + esc(chipLabel(g.key, F[g.key])) + ' \u00d7</span>');
     });
     var el = document.getElementById('btActive');
     el.innerHTML = bits.join('');
-    el.querySelectorAll('[data-clear]').forEach(function(c){ c.addEventListener('click', function(){ F[c.getAttribute('data-clear')]=''; F.page=1; renderActive(); syncURL(); loadGrid(); }); });
+    el.querySelectorAll('[data-clear]').forEach(function(c){
+      c.addEventListener('click', function(){ clearFilter(c.getAttribute('data-clear')); });
+    });
     markActive();
   }
   function markActive(){
     function on(el){
-      return (el.getAttribute('data-brand') && el.getAttribute('data-brand') === F.brand) ||
-             (el.getAttribute('data-cat')   && el.getAttribute('data-cat')   === F.category) ||
-             (el.getAttribute('data-color') && el.getAttribute('data-color') === F.color) ||
-             (el.getAttribute('data-fit')   && el.getAttribute('data-fit')   === F.fit) ||
-             (el.getAttribute('data-quality') && el.getAttribute('data-quality') === F.quality);
+      var k = el.getAttribute('data-f');
+      return !!(k && F[k] && F[k] === el.getAttribute('data-v'));
     }
-    root.querySelectorAll('.fitem').forEach(function(el){ el.classList.toggle('active', !!on(el)); });
-    root.querySelectorAll('.megai').forEach(function(el){ el.classList.toggle('on', !!on(el)); });
+    root.querySelectorAll('.fitem').forEach(function(el){ el.classList.toggle('active', on(el)); });
+    root.querySelectorAll('.megai').forEach(function(el){ el.classList.toggle('on', on(el)); });
   }
+
+  // One delegated handler covers every filter option in both the dropdowns and
+  // the sidebar, including the ones re-rendered after each facet refresh.
+  root.addEventListener('click', function(e){
+    var el = e.target.closest('[data-f][data-v]');
+    if (!el || !root.contains(el)) return;
+    setFilter(el.getAttribute('data-f'), el.getAttribute('data-v'));
+  });
 
   /* ---------- grid ---------- */
   function loadGrid(){
-    var q = 'catalog?page=' + F.page + '&per=24';
-    if (F.s) q += '&s=' + encodeURIComponent(F.s);
-    if (F.brand) q += '&brand=' + encodeURIComponent(F.brand);
-    if (F.category) q += '&category=' + encodeURIComponent(F.category);
-    if (F.fit) q += '&fit=' + encodeURIComponent(F.fit);
-    if (F.quality) q += '&quality=' + encodeURIComponent(F.quality);
-    if (F.color) q += '&color=' + encodeURIComponent(F.color);
-    if (F.sort) q += '&sort=' + encodeURIComponent(F.sort);
-    if (!F.s && !F.brand && !F.category && !F.fit && !F.color && !F.quality && !F.sort) q += '&featured=1';
+    var extra = ['page=' + F.page, 'per=24'];
+    if (F.sort) extra.push('sort=' + encodeURIComponent(F.sort));
+    if (!anyFilter()) extra.push('featured=1');
+    var q = 'catalog' + qs(extra);
     var grid = document.getElementById('btGrid');
     grid.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8a8aa0">Loading\u2026</div>';
     api(q).then(function(d){
@@ -322,9 +400,9 @@
     var pid = readURL();
     var si2 = document.getElementById('btSearch'); if (si2) si2.value = F.s;
     var so2 = document.getElementById('btSort');   if (so2) so2.value = F.sort;
-    if (!pid && curPid){ closePDP(true); renderActive(); loadGrid(); return; }
+    if (!pid && curPid){ closePDP(true); renderActive(); loadGrid(); loadFacets(); return; }
     if (pid && pid !== curPid){ openPDP(pid, true); return; }
-    if (!pid){ renderActive(); loadGrid(); }
+    if (!pid){ renderActive(); loadGrid(); loadFacets(); }
   });
 
   function selColor(){
@@ -553,7 +631,7 @@
   function bindSearch(){
     document.getElementById('btSearch').addEventListener('input', function(e){
       clearTimeout(sT); var v=e.target.value;
-      sT = setTimeout(function(){ F.s=v; F.page=1; syncURL(); loadGrid(); }, 300);
+      sT = setTimeout(function(){ F.s=v; F.page=1; syncURL(); loadGrid(); loadFacets(); }, 300);
     });
   }
 
@@ -570,10 +648,11 @@
     var card = e.target.closest('.pcard');
     if (card && card.getAttribute('data-id')) openPDP(card.getAttribute('data-id'));
   });
-  bindMenus(); bindSearch(); bindSort(); loadFacets();
+  bindMenus(); bindSearch(); bindSort();
   var bootPid = readURL();
   var si = document.getElementById('btSearch'); if (si) si.value = F.s;
   renderActive();
+  loadFacets();
   loadGrid();
   if (bootPid) openPDP(bootPid, true);   // boot: replace, don't push
 })();

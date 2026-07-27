@@ -89,7 +89,11 @@ function bt_cat_featured_resolve() {
             $args[] = $f['style'];
         }
     }
-    $sql  = "SELECT id, brand, style_no, name, category, colors, retail, retail_override
+    // supplier/cost/sale_cost are required by bt_cat_rest_rows_to_items() and
+    // bt_cat_price_range() -- omitting them made the featured page compute its
+    // colorway price range from an undefined cost and drop the SS/SM/EG tag.
+    $sql  = "SELECT id, supplier, brand, style_no, name, category, colors,
+                    cost, sale_cost, retail, retail_override
              FROM $t WHERE detail_done=1 AND active=1 AND (" . implode(' OR ', $ors) . ")";
     $rows = $wpdb->get_results($wpdb->prepare($sql, $args), ARRAY_A);
 
@@ -145,6 +149,13 @@ function bt_cat_install() {
         detail_done TINYINT(1) NOT NULL DEFAULT 0,
         tier VARCHAR(20) NOT NULL DEFAULT '',
         perf TINYINT(1) NOT NULL DEFAULT 0,
+        bucket VARCHAR(40) NOT NULL DEFAULT '',
+        aud VARCHAR(16) NOT NULL DEFAULT '',
+        neck VARCHAR(16) NOT NULL DEFAULT '',
+        sleeve VARCHAR(16) NOT NULL DEFAULT '',
+        closure VARCHAR(16) NOT NULL DEFAULT '',
+        size_set VARCHAR(255) NOT NULL DEFAULT '',
+        color_fams VARCHAR(120) NOT NULL DEFAULT '',
         active TINYINT(1) NOT NULL DEFAULT 1,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
@@ -153,7 +164,12 @@ function bt_cat_install() {
         KEY brand (brand),
         KEY category (category),
         KEY active (active),
-        KEY detail_done (detail_done)
+        KEY detail_done (detail_done),
+        KEY bucket (bucket),
+        KEY aud (aud),
+        KEY neck (neck),
+        KEY sleeve (sleeve),
+        KEY closure (closure)
     ) $charset;";
 
     dbDelta($sql);
@@ -177,6 +193,8 @@ function bt_cat_upsert($row) {
         'specs' => '', 'colors' => '', 'sizes' => '',
         'cost' => 0, 'sale_cost' => 0, 'retail' => 0, 'detail_done' => 1,
         'tier' => '', 'perf' => 0, 'active' => 1,
+        'bucket' => '', 'aud' => '', 'neck' => '', 'sleeve' => '', 'closure' => '',
+        'size_set' => '', 'color_fams' => '',
     );
     $row = array_merge($defaults, array_intersect_key($row, $defaults));
     if ($row['tier'] === '' && function_exists('bt_cat_tier_for')) {
@@ -184,6 +202,12 @@ function bt_cat_upsert($row) {
     }
     if (function_exists('bt_cat_is_performance')) {
         $row['perf'] = bt_cat_is_performance($row) ? 1 : 0;
+    }
+    // Gender/age, neckline, sleeve, closure, sizes and color families are all
+    // derived from what the supplier gave us — always recomputed on import so
+    // a rule change only needs a re-import (or the versioned backfill).
+    if (function_exists('bt_cat_derive_attrs')) {
+        $row = array_merge($row, bt_cat_derive_attrs($row));
     }
     $row['updated_at'] = current_time('mysql');
 
