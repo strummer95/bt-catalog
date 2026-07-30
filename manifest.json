@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.22.2",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.2.zip",
+  "version": "0.22.3",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.3.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "New: Refresh just this brand. Re-pulls one label's styles in a minute or two instead of running the whole catalog for ~40, using the same paced batching as the nightly refresh — no list to paste. Fixes: pasting a long list into Step B fired two API calls per style with no pause until S&S answered 503, and every remaining style was then recorded as a per-style failure, so a rate limit looked like a list of bad style numbers; the import now paces itself, stops cleanly when S&S pushes back, says so, and puts whatever is left back in the box ready to resubmit. Step B also split on every space, so the brand + number form it asks for ('Shaka SHCLT') was torn into two tokens and could never resolve — it now splits on lines and commas only."
+  "changelog": "Check now on the Updates panel links straight to the Plugins screen when a newer version is published, matching BT Quote. When you are already current it says so instead of offering a link that goes nowhere useful."
 }

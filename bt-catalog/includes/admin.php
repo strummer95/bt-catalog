@@ -58,9 +58,13 @@ function bt_cat_admin_page() {
         if (function_exists('bt_cat_force_update_check')) bt_cat_force_update_check();
         $m = function_exists('bt_cat_update_manifest') ? bt_cat_update_manifest() : array();
         $have = !empty($m['version']);
+        $newer = $have && version_compare($m['version'], BT_CAT_VERSION, '>');
         echo '<div class="notice notice-info is-dismissible"><p>'
            . ($have
                 ? 'Update source reachable. Latest published version: <strong>' . esc_html($m['version']) . '</strong> (you have ' . esc_html(BT_CAT_VERSION) . ').'
+                  . ($newer
+                        ? ' <a href="' . esc_url(admin_url('plugins.php')) . '"><strong>Update now on the Plugins screen &rarr;</strong></a>'
+                        : ' You are up to date.')
                 : 'Could not read the update manifest at that URL. Open it in a browser to confirm it loads.')
            . '</p></div>';
     }
