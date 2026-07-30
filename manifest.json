@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.22.4",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.4.zip",
+  "version": "0.22.5",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.5.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Refresh just this brand is no longer disabled while a refresh is running — that was backwards, since replacing a long queue with one brand is exactly what you need when a refresh is hogging the API budget. The Price refresh panel also gains a Stop button so a queue can be abandoned without waiting it out."
+  "changelog": "Fixes 'Style not found' for brands whose style codes contain no digits. Splitting 'Shaka SHGDSSP' into brand + style required the trailing token to contain a number, on the assumption that style numbers are numeric — every Shaka Wear code is pure letters, so the split never happened, the whole string got searched as one style name, and the lookup failed on styles that are plainly in the catalog. The split now happens on any trailing token, and falls back to searching the untouched string when the brand + style reading finds nothing."
 }

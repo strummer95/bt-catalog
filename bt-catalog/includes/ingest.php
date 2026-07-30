@@ -49,16 +49,35 @@ function bt_cat_ss_get($path, $timeout = 25) {
  * When a brand is given, it must match — prevents Bayside 5000 vs Gildan 5000 mixups.
  */
 function bt_cat_ss_style($styleNo) {
+    $raw = trim($styleNo);
+
     // Split optional leading brand words from the trailing style token.
+    // This used to require the trailing token to contain a DIGIT, on the
+    // assumption that style numbers are numeric. Plenty are not -- every Shaka
+    // Wear style is pure letters (SHASS, SHGDSSP) -- so "Shaka SHGDSSP" was
+    // never split, got searched verbatim as a single style name, and came back
+    // "Style not found" for a style that is sitting right there in the catalog.
+    // Split on the last run of whitespace whenever there is one, then fall back
+    // to the whole string if that finds nothing.
     $brand = '';
-    $style = trim($styleNo);
-    if (preg_match('/^(.*\D)\s+([A-Za-z0-9\-]+)$/', $style, $m)) {
-        // Has words before the final token -> treat leading part as brand.
-        $maybeBrand = trim($m[1]);
-        $maybeStyle = trim($m[2]);
-        // Only treat as brand if the final token looks like a style (has a digit).
-        if (preg_match('/\d/', $maybeStyle)) { $brand = $maybeBrand; $style = $maybeStyle; }
+    $style = $raw;
+    if (preg_match('/^(.+)\s+([A-Za-z0-9\-]+)$/', $raw, $m)) {
+        $brand = trim($m[1]);
+        $style = trim($m[2]);
     }
+
+    $res = bt_cat_ss_style_lookup($style, $brand, $raw);
+    // A style name really can contain a space. If the brand + number reading
+    // found nothing, try the untouched string before giving up.
+    if (empty($res['ok']) && $brand !== '') {
+        $whole = bt_cat_ss_style_lookup($raw, '', $raw);
+        if (!empty($whole['ok'])) return $whole;
+    }
+    return $res;
+}
+
+/** One resolution attempt for an already-split style/brand pair. */
+function bt_cat_ss_style_lookup($style, $brand, $styleNo) {
 
     $r = bt_cat_ss_get('styles/?styleSearch=' . urlencode($style) . '&pageSize=50');
     if (empty($r['ok'])) return $r;
