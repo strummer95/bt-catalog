@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.22.3",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.3.zip",
+  "version": "0.22.4",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.4.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Check now on the Updates panel links straight to the Plugins screen when a newer version is published, matching BT Quote. When you are already current it says so instead of offering a link that goes nowhere useful."
+  "changelog": "Refresh just this brand is no longer disabled while a refresh is running — that was backwards, since replacing a long queue with one brand is exactly what you need when a refresh is hogging the API budget. The Price refresh panel also gains a Stop button so a queue can be abandoned without waiting it out."
 }

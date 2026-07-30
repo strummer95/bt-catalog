@@ -338,6 +338,13 @@ function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
     return array('processed' => $processed, 'pending' => count($q), 'active' => (bool) wp_next_scheduled(BT_CAT_REFRESH_HOOK));
 }
 
+/** Abandon whatever is queued and unschedule the ticker. */
+function bt_cat_refresh_stop() {
+    update_option('bt_cat_refresh_ids', array(), false);
+    wp_clear_scheduled_hook(BT_CAT_REFRESH_HOOK);
+    return array('ok' => true);
+}
+
 add_action(BT_CAT_REFRESH_HOOK, function () { bt_cat_refresh_batch(); });
 add_action(BT_CAT_REFRESH_DAILY_HOOK, function () { bt_cat_refresh_start(); });
 

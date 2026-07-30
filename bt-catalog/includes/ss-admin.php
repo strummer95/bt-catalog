@@ -59,6 +59,11 @@ function bt_cat_ss_page() {
             : 'Refresh started — ' . (int) $res['queued'] . ' styles queued.';
     }
 
+    if (isset($_POST['bt_cat_refresh_stop'])) {
+        check_admin_referer('bt_cat_pull');
+        bt_cat_refresh_stop();
+        $refMsg = 'Refresh stopped — the queue was cleared.';
+    }
     if (isset($_POST['bt_cat_refresh_brand'])) {
         check_admin_referer('bt_cat_pull');
         $rb  = sanitize_text_field(wp_unslash($_POST['refresh_brand']));
@@ -227,13 +232,14 @@ function bt_cat_ss_page() {
         <form method="post" style="display:inline">
             <?php wp_nonce_field('bt_cat_pull'); ?>
             <button type="submit" name="bt_cat_refresh_start" value="1" class="button button-primary" <?php disabled($refActive); ?>>Refresh prices now</button>
+            <?php if ($refActive): ?><button type="submit" name="bt_cat_refresh_stop" value="1" class="button">Stop</button><?php endif; ?>
         </form>
         <form method="post" style="display:inline;margin-left:14px">
             <?php wp_nonce_field('bt_cat_pull'); ?>
             <input type="text" name="refresh_brand" value="" class="regular-text" style="width:190px" placeholder="Shaka">
-            <button type="submit" name="bt_cat_refresh_brand" value="1" class="button" <?php disabled($refActive); ?>>Refresh just this brand</button>
+            <button type="submit" name="bt_cat_refresh_brand" value="1" class="button">Refresh just this brand</button>
         </form>
-        <p class="description" style="margin-top:8px">Refreshing one brand re-pulls only that label's styles — a minute or two instead of the full catalog's ~40. Partial names are fine (<code>Shaka</code> matches Shaka Wear).</p>
+        <p class="description" style="margin-top:8px">Refreshing one brand re-pulls only that label's styles — a minute or two instead of the full catalog's ~40. Partial names are fine (<code>Shaka</code> matches Shaka Wear).<?php if ($refActive): ?> <strong>A refresh is running right now</strong> — starting a brand refresh replaces that queue with just this brand, which is usually what you want when you need one label fixed immediately.<?php endif; ?></p>
         <script>
         (function(){
             var nonce = <?php echo wp_json_encode(wp_create_nonce('bt_cat_tick')); ?>;
