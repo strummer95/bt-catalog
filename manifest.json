@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.22.0",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.0.zip",
+  "version": "0.22.1",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.1.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "New filters: Gender/Age, Neckline, Sleeve Length, Style (pullover/quarter-zip/full-zip/snap/button), and Size — all derived at import. Filter options now carry live counts and anything with zero results is hidden entirely, so browsing crewneck sweatshirts never offers Short Sleeve and a hat shows no Neckline group at all. Fixes: sweatshirts were being returned under T-Shirts ('%tshirt%' matches 'Sweatshirts'); the featured page priced colorways off missing columns; three import paths never filled the filter columns."
+  "changelog": "Fixes missing product photos (Shaka Wear and any other brand affected). Colour photo, swatch and hex were only ever read from the FIRST SKU returned for each colourway, and S&S leaves those fields blank on some size rows — so whole brands imported with prices and colour counts intact but no images at all. Each field now fills from the first SKU that actually carries it, and a style with no flat-lay photo falls back through the on-model and side/back angles instead of rendering 'No image'. The S&S probe now reports how many colourways have a photo and samples one that does. Updating queues an automatic catalog refresh, so affected styles repair themselves."
 }

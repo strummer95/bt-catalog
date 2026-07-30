@@ -231,6 +231,12 @@ function bt_cat_ss_page() {
                         <tr><td>Your cost</td><td>$<?php echo esc_html(number_format((float) $probe['your_cost'], 2)); ?></td></tr>
                         <tr><td>Sale cost</td><td><?php echo $probe['sale_cost'] > 0 ? '$' . esc_html(number_format((float) $probe['sale_cost'], 2)) : '—'; ?></td></tr>
                         <tr><td>Colors on sale</td><td><?php echo !empty($probe['color_sales']) ? esc_html(implode(', ', $probe['color_sales'])) : '—'; ?></td></tr>
+                        <tr><td>Colors with a photo</td><td><?php
+                            $ih = (int) ($probe['img_have'] ?? 0); $ic = (int) $probe['colors'];
+                            echo $ih . ' of ' . $ic;
+                            if ($ih === 0)      echo ' — <strong style="color:#b32d2e">S&amp;S has no photo on any colorway of this style</strong>';
+                            elseif ($ih < $ic)  echo ' — the rest fall back to the first colorway with a photo';
+                        ?></td></tr>
                         <tr><td>Sample image</td><td><?php echo $probe['sample_img']
                             ? '<a href="' . esc_url($probe['sample_img']) . '" target="_blank">view photo</a>' : '—'; ?></td></tr>
                     </table>

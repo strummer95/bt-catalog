@@ -113,6 +113,37 @@ function bt_cat_ss_style($styleNo) {
     return array('error' => 'Style not found: ' . $styleNo);
 }
 
+/** Absolute URL for an S&S image path (they come back relative). */
+function bt_cat_ss_img_url($path) {
+    $path = trim((string) $path);
+    if ($path === '') return '';
+    if (stripos($path, 'http') === 0) return $path;   // already absolute
+    return 'https://www.ssactivewear.com/' . ltrim($path, '/');
+}
+
+/**
+ * Best available photo for one SKU, in preference order.
+ *
+ * colorFrontImage is the flat-lay front and is what we want, but S&S does not
+ * populate it for every style -- some brands ship only on-model photography.
+ * Falling through the other angles is much better than rendering "No image".
+ */
+function bt_cat_ss_color_photo($k) {
+    $fields = array(
+        'colorFrontImage',
+        'colorOnModelFrontImage',
+        'colorDirectSideImage',
+        'colorSideImage',
+        'colorOnModelSideImage',
+        'colorBackImage',
+        'colorOnModelBackImage',
+    );
+    foreach ($fields as $f) {
+        if (!empty($k[$f])) return bt_cat_ss_img_url($k[$f]);
+    }
+    return '';
+}
+
 /** Pull SKUs and reduce them to colors / sizes / representative pricing. */
 function bt_cat_ss_reduce($styleID, $withRaw = false) {
     $p = bt_cat_ss_get('products/?style=' . urlencode($styleID) . '&pageSize=500', 12);
@@ -128,17 +159,31 @@ function bt_cat_ss_reduce($styleID, $withRaw = false) {
         $c = $k['colorName'] ?? '';
         if ($c !== '' && !isset($colors[$c])) {
             $colors[$c] = array(
-                'name' => $c,
-                'hex'  => $k['color1'] ?? '',
-                'img'  => !empty($k['colorFrontImage'])
-                    ? 'https://www.ssactivewear.com/' . ltrim($k['colorFrontImage'], '/')
-                    : '',
-                'swatch' => !empty($k['colorSwatchImage'])
-                    ? 'https://www.ssactivewear.com/' . ltrim($k['colorSwatchImage'], '/')
-                    : '',
-                'cost' => 0,   // per-color pricing (specials differ by colorway)
-                'sale' => 0,
+                'name'   => $c,
+                'hex'    => '',
+                'img'    => '',
+                'swatch' => '',
+                'cost'   => 0,   // per-color pricing (specials differ by colorway)
+                'sale'   => 0,
             );
+        }
+        // Photo / swatch / hex are per COLOR, but they are not guaranteed on
+        // every SKU of that color -- S&S leaves them blank on some size rows,
+        // and which row comes back first varies by brand. Reading them only
+        // from the first SKU of a colour therefore lost the photo entirely for
+        // whole brands (Shaka Wear) while prices, which are accumulated across
+        // all SKUs, came through fine. Fill each field from the first SKU that
+        // actually carries it.
+        if ($c !== '' && isset($colors[$c])) {
+            if ($colors[$c]['hex'] === '' && !empty($k['color1'])) {
+                $colors[$c]['hex'] = $k['color1'];
+            }
+            if ($colors[$c]['img'] === '') {
+                $colors[$c]['img'] = bt_cat_ss_color_photo($k);
+            }
+            if ($colors[$c]['swatch'] === '' && !empty($k['colorSwatchImage'])) {
+                $colors[$c]['swatch'] = bt_cat_ss_img_url($k['colorSwatchImage']);
+            }
         }
         // S&S pricing quirk (verified against live SKU data): when a special is
         // active, customerPrice AND salePrice BOTH drop to the sale price — the
@@ -190,9 +235,14 @@ function bt_cat_ss_probe($styleNo) {
     $r = bt_cat_ss_reduce($style['styleID'] ?? '', true);
     if (empty($r['ok'])) return $r;
 
-    $first = reset($r['colors']);
+    // Sample from a colour that actually HAS a photo -- taking the first colour
+    // blindly reported "no image" for a style whose very first colourway just
+    // happened to be missing one, which reads as a much bigger problem than it is.
+    $withImg = array_filter($r['colors'], function ($c) { return $c['img'] !== ''; });
+    $first   = !empty($withImg) ? reset($withImg) : reset($r['colors']);
     return array(
         'ok'        => true,
+        'img_have'  => count($withImg),
         'raw'       => $r['raw'] ?? array(),
         'color_sales' => array_values(array_filter(array_map(function ($c) {
             return $c['sale'] > 0 ? $c['name'] . ' @ $' . number_format($c['sale'], 2) : null;
