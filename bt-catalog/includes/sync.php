@@ -239,15 +239,36 @@ function bt_cat_refresh_pending() {
     return is_array($q) ? count($q) : 0;
 }
 
-/** Queue every imported S&S style and start the minute ticker. */
-function bt_cat_refresh_start($runBatch = true) {
+/**
+ * Queue imported S&S styles and start the minute ticker.
+ *
+ * $brand scopes the queue to a single brand (fuzzy-matched the same way the
+ * storefront filter does, so "Shaka" finds "Shaka Wear"). Re-pulling one
+ * brand is a ~1 minute job; re-pulling the whole catalog is a ~40 minute one,
+ * so when a supplier data problem only affects one label there is no reason
+ * to spend the API budget on the other 3,000 styles.
+ */
+function bt_cat_refresh_start($runBatch = true, $brand = '') {
     global $wpdb;
     $t = bt_cat_table();
     // Don't fight an active full sync for the API budget.
     if (wp_next_scheduled(BT_CAT_CRON_HOOK)) {
         return array('error' => 'A full sync is running — the refresh can start once it finishes.');
     }
-    $ids = $wpdb->get_col("SELECT id FROM $t WHERE supplier='ss' AND detail_done=1 AND active=1 ORDER BY id ASC");
+    $brand = trim((string) $brand);
+    if ($brand !== '') {
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM $t WHERE supplier='ss' AND detail_done=1 AND active=1
+             AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(brand),' ',''),'+',''),'&',''),'-','') LIKE %s
+             ORDER BY id ASC",
+            '%' . $wpdb->esc_like(bt_cat_brand_norm($brand)) . '%'
+        ));
+        if (empty($ids)) {
+            return array('error' => 'No imported S&S styles match the brand "' . $brand . '".');
+        }
+    } else {
+        $ids = $wpdb->get_col("SELECT id FROM $t WHERE supplier='ss' AND detail_done=1 AND active=1 ORDER BY id ASC");
+    }
     update_option('bt_cat_refresh_ids', array_map('intval', (array) $ids), false);
     if (!wp_next_scheduled(BT_CAT_REFRESH_HOOK)) {
         wp_schedule_event(time() + 5, 'bt_cat_minute', BT_CAT_REFRESH_HOOK);

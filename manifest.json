@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.22.1",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.1.zip",
+  "version": "0.22.2",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.2.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fixes missing product photos (Shaka Wear and any other brand affected). Colour photo, swatch and hex were only ever read from the FIRST SKU returned for each colourway, and S&S leaves those fields blank on some size rows — so whole brands imported with prices and colour counts intact but no images at all. Each field now fills from the first SKU that actually carries it, and a style with no flat-lay photo falls back through the on-model and side/back angles instead of rendering 'No image'. The S&S probe now reports how many colourways have a photo and samples one that does. Updating queues an automatic catalog refresh, so affected styles repair themselves."
+  "changelog": "New: Refresh just this brand. Re-pulls one label's styles in a minute or two instead of running the whole catalog for ~40, using the same paced batching as the nightly refresh — no list to paste. Fixes: pasting a long list into Step B fired two API calls per style with no pause until S&S answered 503, and every remaining style was then recorded as a per-style failure, so a rate limit looked like a list of bad style numbers; the import now paces itself, stops cleanly when S&S pushes back, says so, and puts whatever is left back in the box ready to resubmit. Step B also split on every space, so the brand + number form it asks for ('Shaka SHCLT') was torn into two tokens and could never resolve — it now splits on lines and commas only."
 }

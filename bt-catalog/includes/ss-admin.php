@@ -59,6 +59,15 @@ function bt_cat_ss_page() {
             : 'Refresh started — ' . (int) $res['queued'] . ' styles queued.';
     }
 
+    if (isset($_POST['bt_cat_refresh_brand'])) {
+        check_admin_referer('bt_cat_pull');
+        $rb  = sanitize_text_field(wp_unslash($_POST['refresh_brand']));
+        $res = bt_cat_refresh_start(true, $rb);
+        $refMsg = empty($res['ok'])
+            ? '<span style="color:#b32d2e">' . esc_html($res['error'] ?? 'unknown') . '</span>'
+            : 'Refreshing ' . esc_html($rb) . ' — ' . (int) $res['queued'] . ' styles queued.';
+    }
+
     // Clear catalog.
     if (isset($_POST['bt_cat_clear'])) {
         check_admin_referer('bt_cat_pull');
@@ -70,14 +79,48 @@ function bt_cat_ss_page() {
 
     // Import handler (writes rows).
     $import = null;
+    $impMsg = '';
+    $left   = array();
     if (isset($_POST['bt_cat_import'])) {
         check_admin_referer('bt_cat_pull');
         $raw  = sanitize_textarea_field(wp_unslash($_POST['import_styles']));
-        $list = array_filter(array_map('trim', preg_split('/[\s,]+/', $raw)));
+        // Split on LINES and commas only. Splitting on all whitespace tore
+        // "Shaka SHCLT" into two tokens, so the brand + number form this box
+        // explicitly asks for could never resolve.
+        $list = array_filter(array_map('trim', preg_split('/[\r\n,]+/', $raw)));
         $import = array();
+        $stopped = 0;
+        $impMsg  = '';
+        // Each style is two API calls against a 60/min cap, and the whole loop
+        // runs inside one admin page request — so a long paste has to be capped
+        // or PHP's execution limit kills the request mid-import.
+        $cap     = 12;
+        $skipped = array();
+        $left = array_slice($list, $cap);
+        $list = array_slice($list, 0, $cap);
         foreach ($list as $sn) {
-            $res = function_exists('bt_cat_ss_import_style') ? bt_cat_ss_import_style($sn) : array('error' => 'ingest not loaded');
+            if (!function_exists('bt_cat_ss_import_style')) { $import[$sn] = array('error' => 'ingest not loaded'); continue; }
+            // S&S throttles hard: a long paste used to fire calls back to back
+            // until the supplier started answering 503 — which then got recorded
+            // as a per-style failure, making a rate limit look like a bad style
+            // number. Once they push back, stop and say so.
+            if ($stopped) { $import[$sn] = array('error' => 'skipped — S&S rate limit'); $skipped[] = $sn; continue; }
+            $res = bt_cat_ss_import_style($sn);
             $import[$sn] = $res;
+            $err = (string) ($res['error'] ?? '');
+            if (!empty($res['rate']) || strpos($err, '503') !== false || strpos($err, '429') !== false) {
+                $stopped = 1;
+                continue;
+            }
+            usleep(500000);
+        }
+        // Whatever the rate limit cut off goes back in the box with the
+        // over-cap remainder, so resubmitting is one click and never drops a style.
+        if (!empty($skipped)) $left = array_merge($skipped, $left);
+        if ($stopped) {
+            $impMsg = '<span style="color:#b32d2e">S&amp;S started rate limiting partway through — nothing after that point was imported. Wait a minute, or use <strong>Refresh just this brand</strong> above, which paces itself and needs no list.</span>';
+        } elseif (!empty($left)) {
+            $impMsg = 'Imported the first ' . count($list) . '. <strong>' . count($left) . ' still to go</strong> — they are in the box below, ready to submit again.';
         }
     }
 
@@ -185,6 +228,12 @@ function bt_cat_ss_page() {
             <?php wp_nonce_field('bt_cat_pull'); ?>
             <button type="submit" name="bt_cat_refresh_start" value="1" class="button button-primary" <?php disabled($refActive); ?>>Refresh prices now</button>
         </form>
+        <form method="post" style="display:inline;margin-left:14px">
+            <?php wp_nonce_field('bt_cat_pull'); ?>
+            <input type="text" name="refresh_brand" value="" class="regular-text" style="width:190px" placeholder="Shaka">
+            <button type="submit" name="bt_cat_refresh_brand" value="1" class="button" <?php disabled($refActive); ?>>Refresh just this brand</button>
+        </form>
+        <p class="description" style="margin-top:8px">Refreshing one brand re-pulls only that label's styles — a minute or two instead of the full catalog's ~40. Partial names are fine (<code>Shaka</code> matches Shaka Wear).</p>
         <script>
         (function(){
             var nonce = <?php echo wp_json_encode(wp_create_nonce('bt_cat_tick')); ?>;
@@ -295,6 +344,7 @@ function bt_cat_ss_page() {
 
         <?php if ($import !== null): ?>
             <div class="notice notice-info" style="padding:10px 14px">
+                <?php if ($impMsg) echo '<p style="margin:0 0 8px">' . wp_kses_post($impMsg) . '</p>'; ?>
                 <p style="margin:0 0 6px"><strong>Import results:</strong></p>
                 <table class="widefat striped" style="max-width:620px">
                     <thead><tr><th>Style</th><th>Result</th></tr></thead>
@@ -316,7 +366,7 @@ function bt_cat_ss_page() {
         <p class="description">Step B — import styles into the catalog. One per line or comma-separated. Use <em>brand + number</em> (e.g. <code>Gildan 5000</code>):</p>
         <form method="post">
             <?php wp_nonce_field('bt_cat_pull'); ?>
-            <textarea name="import_styles" rows="4" class="large-text code" style="max-width:620px" placeholder="Gildan 5000&#10;Bella 3001&#10;BX003"></textarea>
+            <textarea name="import_styles" rows="4" class="large-text code" style="max-width:620px" placeholder="Gildan 5000&#10;Bella 3001&#10;BX003"><?php echo esc_textarea(implode("\n", (array) $left)); ?></textarea>
             <p><button type="submit" name="bt_cat_import" value="1" class="button button-primary">Import these styles</button></p>
         </form>
 
