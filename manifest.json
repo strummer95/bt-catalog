@@ -1,10 +1,10 @@
 {
   "name": "BT Catalog",
   "slug": "bt-catalog",
-  "version": "0.22.5",
-  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.22.5.zip",
+  "version": "0.23.0",
+  "download_url": "https://raw.githubusercontent.com/strummer95/bt-catalog/main/bt-catalog-0.23.0.zip",
   "homepage": "https://boomerts.com",
   "tested": "6.6",
   "requires": "5.8",
-  "changelog": "Fixes 'Style not found' for brands whose style codes contain no digits. Splitting 'Shaka SHGDSSP' into brand + style required the trailing token to contain a number, on the assumption that style numbers are numeric — every Shaka Wear code is pure letters, so the split never happened, the whole string got searched as one style name, and the lookup failed on styles that are plainly in the catalog. The split now happens on any trailing token, and falls back to searching the untouched string when the brand + style reading finds nothing."
+  "changelog": "<h4>0.23.0</h4><ul><li>Every BT plugin now shows the same <strong>Updates</strong> section in the same place &mdash; last on the page, same heading, same button, same wording. Shared file, so they cannot drift apart again.</li><li>The GitHub repo field is now its own <em>Update source</em> setting above it.</li></ul>Fixes 'Style not found' for brands whose style codes contain no digits. Splitting 'Shaka SHGDSSP' into brand + style required the trailing token to contain a number, on the assumption that style numbers are numeric \u2014 every Shaka Wear code is pure letters, so the split never happened, the whole string got searched as one style name, and the lookup failed on styles that are plainly in the catalog. The split now happens on any trailing token, and falls back to searching the untouched string when the brand + style reading finds nothing."
 }

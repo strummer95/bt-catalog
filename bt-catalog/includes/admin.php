@@ -52,23 +52,6 @@ function bt_cat_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>Update source saved.</p></div>';
     }
 
-    // Force an update check.
-    if (isset($_POST['bt_cat_checkupd'])) {
-        check_admin_referer('bt_cat_upd');
-        if (function_exists('bt_cat_force_update_check')) bt_cat_force_update_check();
-        $m = function_exists('bt_cat_update_manifest') ? bt_cat_update_manifest() : array();
-        $have = !empty($m['version']);
-        $newer = $have && version_compare($m['version'], BT_CAT_VERSION, '>');
-        echo '<div class="notice notice-info is-dismissible"><p>'
-           . ($have
-                ? 'Update source reachable. Latest published version: <strong>' . esc_html($m['version']) . '</strong> (you have ' . esc_html(BT_CAT_VERSION) . ').'
-                  . ($newer
-                        ? ' <a href="' . esc_url(admin_url('plugins.php')) . '"><strong>Update now on the Plugins screen &rarr;</strong></a>'
-                        : ' You are up to date.')
-                : 'Could not read the update manifest at that URL. Open it in a browser to confirm it loads.')
-           . '</p></div>';
-    }
-
     global $wpdb;
     $t    = bt_cat_table();
     $rows = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t");
@@ -188,22 +171,28 @@ function bt_cat_admin_page() {
         </form>
 
         <hr style="margin:28px 0">
-        <h2>Updates</h2>
-        <p class="description">Updates come from this GitHub repo via the API — instant, no waiting, no re-uploading. New version shows “Update Now” on the Plugins screen.</p>
+        <h2>Update source</h2>
+        <p class="description">Updates come from this GitHub repo via the API &mdash; instant, no waiting, no re-uploading.</p>
         <form method="post">
             <?php wp_nonce_field('bt_cat_upd'); ?>
             <table class="form-table" role="presentation">
                 <tr>
                     <th scope="row"><label for="gh_repo">GitHub repo</label></th>
-                    <td><input id="gh_repo" name="gh_repo" type="text" value="<?php echo esc_attr(bt_cat_opt('gh_repo', 'strummer95/bt-catalog')); ?>" class="regular-text" placeholder="owner/repo">
-                        <p class="description">Installed version: <strong><?php echo esc_html(BT_CAT_VERSION); ?></strong></p></td>
+                    <td><input id="gh_repo" name="gh_repo" type="text" value="<?php echo esc_attr(bt_cat_opt('gh_repo', 'strummer95/bt-catalog')); ?>" class="regular-text" placeholder="owner/repo"></td>
                 </tr>
             </table>
-            <p>
-                <button type="submit" name="bt_cat_save_upd" value="1" class="button button-primary">Save</button>
-                <button type="submit" name="bt_cat_checkupd" value="1" class="button">Check now</button>
-            </p>
+            <p><button type="submit" name="bt_cat_save_upd" value="1" class="button">Save update source</button></p>
         </form>
+
+        <?php
+        // Shared BT panel — same layout, wording and button on every BT plugin.
+        bt_admin_updates_panel(array(
+            'slug'     => 'bt-catalog',
+            'version'  => BT_CAT_VERSION,
+            'manifest' => 'bt_cat_update_manifest',
+            'flush'    => 'bt_cat_force_update_check',
+        ));
+        ?>
 
     </div>
     <?php

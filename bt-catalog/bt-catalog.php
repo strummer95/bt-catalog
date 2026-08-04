@@ -18,6 +18,7 @@ require_once BT_CAT_DIR . 'includes/db.php';
 require_once BT_CAT_DIR . 'includes/tiers.php';
 require_once BT_CAT_DIR . 'includes/ingest.php';
 require_once BT_CAT_DIR . 'includes/sync.php';
+require_once BT_CAT_DIR . 'includes/bt-admin.php';
 require_once BT_CAT_DIR . 'includes/admin.php';
 require_once BT_CAT_DIR . 'includes/ss-admin.php';
 require_once BT_CAT_DIR . 'includes/pricing.php';
