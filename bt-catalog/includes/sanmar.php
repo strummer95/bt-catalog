@@ -401,6 +401,20 @@ function bt_cat_sanmar_page() {
         bt_cat_sanmar_run_batch(15);
         echo '<div class="notice notice-success is-dismissible"><p>Import started — it continues in the background. Refresh to watch progress.</p></div>';
     }
+    if (isset($_POST['bt_cat_jump_queue'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        $jump = bt_cat_sanmar_prioritize($_POST['jump_prefix'] ?? '');
+        if ($jump['moved'] > 0) {
+            if (!wp_next_scheduled('bt_cat_sanmar_tick')) wp_schedule_single_event(time() + 5, 'bt_cat_sanmar_tick');
+            bt_cat_sanmar_run_batch(25);
+            echo '<div class="notice notice-success is-dismissible"><p>Moved <strong>' . (int) $jump['moved']
+               . '</strong> style' . ($jump['moved'] === 1 ? '' : 's') . ' starting with <code>' . esc_html($jump['prefix'])
+               . '</code> to the front, and ran the first 25. Refresh to watch, or hit <em>Run 25 now</em> to push it along.</p></div>';
+        } else {
+            echo '<div class="notice notice-warning is-dismissible"><p>No unprocessed styles start with <code>'
+               . esc_html($jump['prefix']) . '</code>. Run <em>Discover styles</em> first if the queue is empty.</p></div>';
+        }
+    }
     if (isset($_POST['bt_cat_import_batch'])) {
         check_admin_referer('bt_cat_sanmar_import');
         bt_cat_sanmar_run_batch(25);
@@ -545,7 +559,13 @@ function bt_cat_sanmar_page() {
                 &nbsp;<button type="submit" name="bt_cat_import_batch" value="1" class="button" <?php echo $queued ? '' : 'disabled'; ?>>Run 25 now</button>
                 <?php if ($running): ?>&nbsp;<button type="submit" name="bt_cat_import_stop" value="1" class="button">Pause</button><?php endif; ?>
             </p>
-            <p><button type="submit" name="bt_cat_cleanup_sanmar" value="1" class="button">Re-check imported items</button> <span class="description">Removes already-imported SanMar items that S&amp;S carries or that are on the skip list (run after editing the skip list).</span></p>
+            <p class="description" style="margin-top:18px"><strong>Need one brand now?</strong> A full run is about two hours. Type the style prefix and it jumps the queue &mdash; New Era is <code>NE</code>, Richardson <code>R</code>, Sport-Tek <code>ST</code>.</p>
+            <p>
+                <input type="text" name="jump_prefix" value="NE" style="width:90px;text-transform:uppercase">
+                <button type="submit" name="bt_cat_jump_queue" value="1" class="button">Move to front &amp; run 25</button>
+            </p>
+
+            <p style="margin-top:18px"><button type="submit" name="bt_cat_cleanup_sanmar" value="1" class="button">Re-check imported items</button> <span class="description">Removes already-imported SanMar items that S&amp;S carries or that are on the skip list (run after editing the skip list).</span></p>
 
             <?php if ($discover !== null): ?>
                 <?php if (!empty($discover['ok'])): ?>
@@ -775,6 +795,42 @@ function bt_cat_sanmar_cleanup() {
 function bt_cat_sanmar_stats() {
     $s = json_decode((string) get_option('bt_cat_sanmar_stats', '{}'), true);
     return is_array($s) ? $s : array();
+}
+
+/**
+ * Move every not-yet-processed style whose number starts with $prefix to the
+ * front of the remaining queue.
+ *
+ * A full SanMar run is ~3,100 styles at 25/min, so roughly two hours before a
+ * brand sitting late in the alphabet appears. Nothing about the queue order
+ * matters, so wanted styles can simply jump it — New Era is NE*, Richardson
+ * is R*, and so on. Styles already processed are left where they are, and
+ * anything that jumps but turns out to be another brand imports normally, so
+ * a loose prefix costs nothing but its place in line.
+ */
+function bt_cat_sanmar_prioritize($prefix) {
+    $prefix = strtoupper(trim(preg_replace('/[^A-Za-z0-9]/', '', (string) $prefix)));
+    if ($prefix === '') return array('moved' => 0, 'prefix' => '');
+
+    $queue = json_decode((string) get_option('bt_cat_sanmar_queue', '[]'), true);
+    if (!is_array($queue) || !$queue) return array('moved' => 0, 'prefix' => $prefix);
+
+    $pos  = (int) get_option('bt_cat_sanmar_pos', 0);
+    if ($pos < 0) $pos = 0;
+    if ($pos >= count($queue)) return array('moved' => 0, 'prefix' => $prefix);
+
+    $done = array_slice($queue, 0, $pos);
+    $rest = array_slice($queue, $pos);
+
+    $hit = array();
+    $miss = array();
+    foreach ($rest as $style) {
+        if (strpos(strtoupper((string) $style), $prefix) === 0) $hit[] = $style;
+        else $miss[] = $style;
+    }
+
+    if ($hit) update_option('bt_cat_sanmar_queue', wp_json_encode(array_merge($done, $hit, $miss)), false);
+    return array('moved' => count($hit), 'prefix' => $prefix);
 }
 
 /** Process the next $n styles from the discovered queue. */
