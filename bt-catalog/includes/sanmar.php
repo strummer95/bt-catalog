@@ -529,12 +529,12 @@ function bt_cat_sanmar_page() {
             $queued = (int) (isset($st['total']) ? $st['total'] : 0);
             $proc   = (int) (isset($st['processed']) ? $st['processed'] : 0);
             $running = !empty($st['running']) || (bool) wp_next_scheduled('bt_cat_sanmar_tick');
+            bt_cat_sanmar_retire_legacy_denylist();
             $deny_raw = (string) get_option('bt_cat_sanmar_denylist', '');
-            if (trim($deny_raw) === '') $deny_raw = "Gildan\nHanes\nJerzees\nFruit of the Loom\nBella+Canvas\nNext Level\nComfort Colors\nChampion\nAmerican Apparel\nAnvil\nNew Era\nGildan Hammer";
         ?>
         <form method="post" style="max-width:900px">
             <?php wp_nonce_field('bt_cat_sanmar_import'); ?>
-            <p class="description"><strong>Step 1.</strong> Brands to <strong>skip entirely</strong> — ones you only want from S&amp;S (the basics S&amp;S stocks completely: Gildan, Hanes, Jerzees, etc.). One per line. For <em>every other brand</em>, the import automatically brings in only the SanMar styles your S&amp;S catalog doesn't already have (matched by style number) — so you get the odd Richardson or Sport-Tek that S&amp;S lacks, without duplicating what's already there.</p>
+            <p class="description"><strong>Step 1 (optional).</strong> The import already skips any SanMar style your S&amp;S catalog has at the same style number, so nothing duplicates and there is no need to list anything here. Use this box only to refuse a brand from SanMar <em>outright</em> — including the styles S&amp;S does not carry. One per line. Leave it empty unless you mean it.</p>
             <textarea name="denylist" rows="6" class="large-text code"><?php echo esc_textarea($deny_raw); ?></textarea>
             <p><button type="submit" name="bt_cat_save_denylist" value="1" class="button">Save skip list</button></p>
 
@@ -645,14 +645,50 @@ function bt_cat_sanmar_discover() {
     return array('ok' => true, 'ids' => array_keys($ids), 'count' => count($ids), 'request' => $r['request']);
 }
 
-/** Brands S&S already carries — SanMar styles in these are skipped (editable). */
+/**
+ * Brands to skip entirely, if any. Empty by default, and that is deliberate.
+ *
+ * This used to ship a list of "brands S&S carries" — Gildan, Hanes, New Era
+ * and so on — and skip every SanMar style in them. That over-excluded badly.
+ * The brief was to skip SanMar styles S&S ALREADY HAS, which
+ * bt_cat_sanmar_ss_has() does exactly, style number by style number. Skipping
+ * a whole brand also threw away the styles in it that S&S does not carry —
+ * every New Era cap, for one.
+ *
+ * So it is now an opt-in override for a brand you never want from SanMar at
+ * all. Deduplication is the per-style check's job, not this list's.
+ */
 function bt_cat_sanmar_denylist() {
+    bt_cat_sanmar_retire_legacy_denylist();
     $raw = (string) get_option('bt_cat_sanmar_denylist', '');
-    if (trim($raw) === '') $raw = "Gildan\nHanes\nJerzees\nFruit of the Loom\nBella+Canvas\nNext Level\nComfort Colors\nChampion\nAmerican Apparel\nAnvil\nNew Era\nGildan Hammer";
     $out = array();
     foreach (preg_split('/[\r\n,]+/', $raw) as $b) { $b = trim($b); if ($b !== '') $out[] = bt_cat_brand_norm($b); }
     return $out;
 }
+/**
+ * Clear a stored copy of the old shipped default — it was never a deliberate
+ * choice. A list containing anything outside that default has been edited by
+ * hand, so it is left alone.
+ */
+function bt_cat_sanmar_retire_legacy_denylist() {
+    if (get_option('bt_cat_denylist_retired_v1')) return;
+
+    $legacy = array('gildan','hanes','jerzees','fruitoftheloom','bellacanvas','nextlevel',
+                    'comfortcolors','champion','americanapparel','anvil','newera','gildanhammer');
+
+    $raw = (string) get_option('bt_cat_sanmar_denylist', '');
+    if (trim($raw) !== '') {
+        $saved = array();
+        foreach (preg_split('/[\r\n,]+/', $raw) as $b) {
+            $b = trim($b);
+            if ($b !== '') $saved[] = bt_cat_brand_norm($b);
+        }
+        if ($saved && !array_diff($saved, $legacy)) update_option('bt_cat_sanmar_denylist', '');
+    }
+
+    update_option('bt_cat_denylist_retired_v1', '1');
+}
+
 function bt_cat_sanmar_is_shared($brand) {
     return in_array(bt_cat_brand_norm($brand), bt_cat_sanmar_denylist(), true);
 }
