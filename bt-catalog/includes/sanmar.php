@@ -230,19 +230,38 @@ function bt_cat_sanmar_media($style) {
         'mediaType' => 'Image', 'productId' => $style,
     ));
     if (!$r['ok']) return $r;
-    $byColor = array();  // color => list of urls
+    $byColor  = array();  // color => list of garment photo urls
+    $swatches = array();  // color => swatch asset url
     if (isset($r['data']['MediaContentArray']['MediaContent'])) $list = bt_cat_sanmar_list($r['data']['MediaContentArray']['MediaContent']);
     else $list = array();
     foreach ($list as $m) {
         $url   = bt_cat_sanmar_find_key($m, array('url'));
         $color = bt_cat_sanmar_find_key($m, array('color', 'colorName'));
-        if ($url && $color) { if (!isset($byColor[$color])) $byColor[$color] = array(); $byColor[$color][] = $url; }
+        if (!$url || !$color) continue;
+        // A swatch is a flat colour chip, not a garment photo. When SanMar sends
+        // one, keep it (it beats any derived hex) and keep it OUT of the photo
+        // ranking, where a small chip could otherwise win the product image.
+        $cls = bt_cat_sanmar_find_key($m, array('classTypeName', 'classType'));
+        if (bt_cat_sanmar_is_swatch($url, $cls)) {
+            if (!isset($swatches[$color])) $swatches[$color] = $url;
+            continue;
+        }
+        if (!isset($byColor[$color])) $byColor[$color] = array();
+        $byColor[$color][] = $url;
     }
     $out = array();
     foreach ($byColor as $color => $urls) {
         $out[$color] = bt_cat_sanmar_best_image($urls);
     }
-    return array('ok' => true, 'images' => $out, 'count' => count($list), 'request' => $r['request']);
+    return array('ok' => true, 'images' => $out, 'swatches' => $swatches, 'count' => count($list), 'request' => $r['request']);
+}
+
+/** True when a media entry is a colour chip rather than a garment photo. */
+function bt_cat_sanmar_is_swatch($url, $classType = '') {
+    $u = strtolower((string) $url);
+    if (strpos($u, 'swatch') !== false) return true;
+    $c = strtolower((string) $classType);
+    return $c !== '' && strpos($c, 'swatch') !== false;
 }
 
 /** Prefer a front-facing image: model_front > flat_front > *front* > first. */
@@ -309,10 +328,19 @@ function bt_cat_sanmar_assemble($style) {
     $media = bt_cat_sanmar_media($style);
     $price = bt_cat_sanmar_pricing($style);
 
-    $images = (!empty($media['ok'])) ? $media['images'] : array();
+    $images   = (!empty($media['ok'])) ? $media['images'] : array();
+    $swatches = (!empty($media['ok']) && isset($media['swatches'])) ? $media['swatches'] : array();
     $colors = array();
     foreach ($prod['colors'] as $cn) {
-        $colors[] = array('name' => $cn, 'hex' => '', 'img' => isset($images[$cn]) ? $images[$cn] : '', 'swatch' => '');
+        $colors[] = array(
+            'name'   => $cn,
+            // SanMar's feed carries no hex, so derive one from the name — the
+            // chip used to fall through to catalog.js's grey default. A real
+            // swatch image, when SanMar sends one, still wins over the hex.
+            'hex'    => function_exists('bt_cat_color_hex') ? bt_cat_color_hex($cn) : '',
+            'img'    => isset($images[$cn]) ? $images[$cn] : '',
+            'swatch' => isset($swatches[$cn]) ? $swatches[$cn] : '',
+        );
     }
     return array(
         'ok'       => true,
@@ -760,11 +788,20 @@ function bt_cat_sanmar_import_one($style) {
     // Keeper — now pull images + pricing.
     $media = bt_cat_sanmar_media($style);
     $price = bt_cat_sanmar_pricing($style);
-    $images = (!empty($media['ok'])) ? $media['images'] : array();
+    $images   = (!empty($media['ok'])) ? $media['images'] : array();
+    $swatches = (!empty($media['ok']) && isset($media['swatches'])) ? $media['swatches'] : array();
 
     $colors = array();
     foreach ($prod['colors'] as $cn) {
-        $colors[] = array('name' => $cn, 'hex' => '', 'img' => isset($images[$cn]) ? $images[$cn] : '', 'swatch' => '');
+        $colors[] = array(
+            'name'   => $cn,
+            // SanMar's feed carries no hex, so derive one from the name — the
+            // chip used to fall through to catalog.js's grey default. A real
+            // swatch image, when SanMar sends one, still wins over the hex.
+            'hex'    => function_exists('bt_cat_color_hex') ? bt_cat_color_hex($cn) : '',
+            'img'    => isset($images[$cn]) ? $images[$cn] : '',
+            'swatch' => isset($swatches[$cn]) ? $swatches[$cn] : '',
+        );
     }
     $cost = (!empty($price['ok'])) ? $price['cost'] : 0;
     bt_cat_upsert(array(
