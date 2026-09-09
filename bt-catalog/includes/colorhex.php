@@ -233,21 +233,42 @@ function bt_cat_color_hex($name) {
  * Fill empty hex values on already-imported rows so existing products get their
  * chips without a re-import. Only touches colors whose hex AND swatch are both
  * empty, so a real supplier hex or swatch image is never overwritten.
- * Returns the number of rows updated.
+ *
+ * Runs in BATCHES. A full SanMar catalog is ~3,000 rows and a single row's
+ * colors JSON can hold 90 colors, so decoding every row in one request and
+ * firing one UPDATE each is enough work to hit max_execution_time or
+ * memory_limit. Instead each admin request handles a bounded slice, remembers
+ * where it stopped, and picks up on the next page load.
+ *
+ * Returns ['done' => bool, 'updated' => int, 'scanned' => int].
  */
-function bt_cat_colorhex_backfill($supplier = 'sanmar') {
+function bt_cat_colorhex_backfill($supplier = 'sanmar', $limit = 150) {
     global $wpdb;
     $t = bt_cat_table();
-    if ($wpdb->get_var("SHOW TABLES LIKE '$t'") !== $t) return 0;
+    if ($wpdb->get_var("SHOW TABLES LIKE '$t'") !== $t) {
+        return array('done' => true, 'updated' => 0, 'scanned' => 0);
+    }
 
-    $rows = $wpdb->get_results(
-        $wpdb->prepare("SELECT id, colors FROM $t WHERE supplier=%s", $supplier),
-        ARRAY_A
-    );
-    if (!is_array($rows)) return 0;
+    $cursor = (int) get_option('bt_cat_colorhex_cursor', 0);
 
-    $n = 0;
+    // Only rows that still carry an empty hex are candidates. The cursor is
+    // what guarantees progress: a row whose colour names don't resolve keeps
+    // matching this LIKE forever, and without the cursor we'd re-scan it every
+    // request and never finish.
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT id, colors FROM $t
+          WHERE supplier = %s AND id > %d AND colors LIKE %s
+       ORDER BY id ASC LIMIT %d",
+        $supplier, $cursor, '%"hex":""%', $limit
+    ), ARRAY_A);
+
+    if (!is_array($rows) || !$rows) {
+        return array('done' => true, 'updated' => 0, 'scanned' => 0);
+    }
+
+    $updated = 0; $last = $cursor;
     foreach ($rows as $r) {
+        $last = (int) $r['id'];
         $cols = json_decode((string) $r['colors'], true);
         if (!is_array($cols) || !$cols) continue;
 
@@ -264,16 +285,26 @@ function bt_cat_colorhex_backfill($supplier = 'sanmar') {
         }
         if (!$changed) continue;
 
-        $wpdb->update($t, array('colors' => wp_json_encode($cols)), array('id' => (int) $r['id']));
-        $n++;
+        $wpdb->update($t, array('colors' => wp_json_encode($cols)), array('id' => $last));
+        $updated++;
     }
-    return $n;
+
+    update_option('bt_cat_colorhex_cursor', $last, false);
+
+    // A short page means we reached the end of the table.
+    return array('done' => count($rows) < $limit, 'updated' => $updated, 'scanned' => count($rows));
 }
 
-/** Run the backfill once per plugin version, same pattern as bt_cat_attrs_ensure(). */
+/**
+ * Advance the backfill one batch per admin request until it finishes, then
+ * stamp the version so it never runs again for this release.
+ */
 function bt_cat_colorhex_ensure() {
     if (get_option('bt_cat_colorhex_stamp') === BT_CAT_VERSION) return;
-    bt_cat_colorhex_backfill('sanmar');
-    update_option('bt_cat_colorhex_stamp', BT_CAT_VERSION);
+    $r = bt_cat_colorhex_backfill('sanmar');
+    if (!empty($r['done'])) {
+        update_option('bt_cat_colorhex_stamp', BT_CAT_VERSION);
+        delete_option('bt_cat_colorhex_cursor');
+    }
 }
 add_action('admin_init', 'bt_cat_colorhex_ensure', 21);
