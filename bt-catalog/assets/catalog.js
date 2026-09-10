@@ -622,7 +622,69 @@
     document.getElementById('btBack').addEventListener('click', function(){ goStep(2); });
     document.getElementById('btSend').addEventListener('click', function(){
       if(!contact.name || !contact.email){ alert('Please add your name and email.'); return; }
-      sent = true; stepSend();   // submission wiring to the quote desk comes in the next step
+      sendQuote(this);
+    });
+  }
+
+  /* ---------- send to the quote desk ----------
+   * Until 0.25.0 this button only flipped the drawer to "sent" in the browser.
+   * Nothing left the page, so every catalog quote request was lost. It now posts
+   * to the same BT Quote endpoint the Quick Quote tool uses (boomerts/v1/quote),
+   * so catalog requests land in the same inbox as /quote/ requests. The drawer
+   * only shows "sent" once the server confirms the email went out.
+   */
+  function catalogSummary(d){
+    var lines = quote.map(function(l){
+      var sz = SIZES_ORDER.filter(function(z){ return l.sizes[z]; })
+        .map(function(z){ return z + ' x' + l.sizes[z]; }).join(', ');
+      return '- ' + [l.brand, l.name].filter(Boolean).join(' ') + ' (Style ' + l.style + ')'
+        + (l.color ? ' / ' + l.color : '')
+        + ' / ' + (sz || 'no sizes entered') + ' = ' + l.qty + ' pcs'
+        + ' / blank ' + money(l.price) + '/ea';
+    }).join('\n');
+
+    var deco = (method==='emb')
+      ? 'Embroidery: ' + ({text:'Names / Text',logo:'Logo',hard:'Hard-to-handle'}[embType] || embType)
+      : 'Locations: ' + locs;
+
+    var price;
+    if (!d || d.error || d.code) {
+      price = 'Price Per Shirt: to be confirmed\nEst. Total: to be confirmed\n';
+    } else if (d.perShirt == null) {
+      price = 'Price Per Shirt: By Quote\nEst. Total: By Quote\n';
+    } else {
+      price = 'Price Per Shirt: ' + money(d.perShirt) + '\nEst. Total: ' + money(d.total)
+        + (d.discPct ? ' (' + d.discPct + '% qty discount applied)' : '') + '\n';
+    }
+
+    return 'Source: BT Catalog\n'
+      + 'Quantity: ' + totalQty() + ' pcs\n'
+      + 'Garment:\n' + lines + '\n'
+      + deco + '\n'
+      + price
+      + 'Message: ' + ((contact.notes || '').trim() || '(none)');
+  }
+
+  function sendQuote(btn){
+    btn.disabled = true;
+    btn.textContent = 'Sending\u2026';
+    var fail = function(){
+      alert('Something went wrong sending your request. Please try again, or call us directly.');
+      btn.disabled = false;
+      btn.textContent = 'Send quote request';
+    };
+    // Price it fresh at send time so the email matches what is in the drawer now,
+    // even if sizes were changed after the estimate on the Decoration step.
+    postPrice(function(d){
+      var body = 'your-name=' + encodeURIComponent(contact.name.trim())
+        + '&your-email=' + encodeURIComponent(contact.email.trim())
+        + '&your-organization='
+        + '&your-phone=' + encodeURIComponent((contact.phone || '').trim())
+        + '&your-message=' + encodeURIComponent(catalogSummary(d));
+      fetch(REST + 'quote', { method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body })
+        .then(function(r){ if (r.ok) { sent = true; stepSend(); } else { fail(); } })
+        .catch(fail);
     });
   }
 

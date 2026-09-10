@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.24.1**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.25.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -163,8 +163,11 @@ Autoprice is cost times markup, rounded up to `.95`.
 
 ## Open items
 
-- Wire the quote Send step into the employee-portal quote desk. Currently Send only
-  confirms client-side. This is the last real feature.
+- DONE 0.25.0: the drawer's Send step posts to BT Quote's `boomerts/v1/quote` (same
+  endpoint and inbox as Quick Quote, params `your-name` / `your-email` /
+  `your-organization` / `your-phone` / `your-message`). Before that, Send only flipped the
+  drawer to "sent" client-side and every catalog quote request was silently lost. Never
+  show a success state the server has not confirmed.
 - Verify Quick Quote price parity against the portal for a known combo, and decide whether
   `retail` should send the doubled retail (current) or raw cost.
 - Price Point Premium tees are tagged whole-page `better` rather than split good/better,
