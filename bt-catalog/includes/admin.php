@@ -41,6 +41,18 @@ function bt_cat_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>Popular list saved.</p></div>';
     }
 
+    // Save the PresStora bridge key (merge — preserves credentials).
+    if (isset($_POST['bt_cat_save_bridge'])) {
+        check_admin_referer('bt_cat_bridge');
+        $o = get_option('bt_cat_settings', array());
+        if (!is_array($o)) $o = array();
+        $o['bridge_key'] = trim(sanitize_text_field(wp_unslash($_POST['bridge_key'])));
+        update_option('bt_cat_settings', $o);
+        echo '<div class="notice notice-success is-dismissible"><p>'
+           . ($o['bridge_key'] === '' ? 'Bridge turned off.' : 'Bridge key saved.')
+           . '</p></div>';
+    }
+
     // Save update source (merge — preserves credentials).
     if (isset($_POST['bt_cat_save_upd'])) {
         check_admin_referer('bt_cat_upd');
@@ -168,6 +180,40 @@ function bt_cat_admin_page() {
                 </ul>
             <?php endif; ?>
             <p><button type="submit" name="bt_cat_save_pop" value="1" class="button button-primary">Save popular</button></p>
+        </form>
+
+        <hr style="margin:28px 0">
+        <h2>PresStora bridge</h2>
+        <p class="description">
+            PresStora needs the SanMar styles this catalog already holds &mdash; Port Authority,
+            Sport-Tek, Port &amp; Company, District, New Era &mdash; which S&amp;S does not sell.
+            Rather than PresStora talking to SanMar (which would need SOAP on that server and its
+            own IP whitelisted), it reads them from here, where they already are.<br>
+            Paste the same key into PresStora under Creator &rarr; Catalog. <strong>Blank turns the
+            bridge off</strong>, which is how every other install stays.
+        </p>
+        <p class="description">
+            This is not the public catalog route. That one deliberately never sends cost; this one
+            does, which is why it is signed &mdash; an unsigned request gets nothing.
+        </p>
+        <form method="post">
+            <?php wp_nonce_field('bt_cat_bridge'); ?>
+            <table class="form-table" style="max-width:720px">
+                <tr>
+                    <th scope="row"><label for="bridge_key">Bridge key</label></th>
+                    <td>
+                        <input name="bridge_key" id="bridge_key" type="text" class="regular-text code"
+                               value="<?php echo esc_attr(bt_cat_opt('bridge_key')); ?>"
+                               placeholder="<?php echo esc_attr(bin2hex(random_bytes(16))); ?>">
+                        <p class="description">
+                            Any long random string. The box shows a fresh suggestion each time this
+                            page loads &mdash; copy it, save it here, paste it into PresStora.
+                            The key itself never travels over the wire; only a signature made with it does.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            <p><button type="submit" name="bt_cat_save_bridge" value="1" class="button button-primary">Save bridge key</button></p>
         </form>
 
         <hr style="margin:28px 0">
