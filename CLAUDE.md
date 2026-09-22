@@ -45,15 +45,21 @@ Steps:
    `bt-catalog/` folder itself, excluding `.DS_Store`.
 5. Update `manifest.json`: version, `download_url` at the **versioned** raw URL, changelog.
 6. Commit and push to `main`.
-7. Dillon: **BT Catalog → Updates → Check now**, then **Plugins → Update Now**.
+7. Dillon: **BT Catalog → Check for updates** (the panel at the bottom of the BT Catalog
+   page), then **Plugins → Update Now**.
 
 `uploads.github.com` is blocked from the container, so GitHub Release assets can't be
 attached. That is why releases use versioned raw zips. The updater reads `manifest.json`
 through `api.github.com` with `Accept: application/vnd.github.raw`, so a push is live
 instantly.
 
-`includes/bt-admin.php` is byte-identical across bt-portal, bt-catalog, bt-quote and
-bt-accounts. Don't fork it; if it changes, re-copy into all four in the same round.
+`includes/bt-admin.php` is byte-identical across bt-portal, bt-catalog, bt-quote,
+bt-accounts and bt-dtf. Don't fork it; if it changes, re-copy into all five in the same
+round.
+
+**Where the update check lives is a fixed rule across the BT plugins:** the shared panel
+is the last thing on the plugin's own top-level admin page. Never a separate Updates
+submenu. BT Transfers was the one exception until 0.7.5 and it is not coming back.
 
 ## Suppliers
 
