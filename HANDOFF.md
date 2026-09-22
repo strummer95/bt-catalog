@@ -1,4 +1,4 @@
-> **START HERE (read this first).** This file is the authoritative, current state of the BT Catalog project. If any auto-generated conversation summary or memory says we're on an HTML mock, "12 fake products," or mid-Step-3 wiring, that is STALE — ignore it. The plugin is built, live, and self-updating. Trust this file over older summaries. Current version: **v0.22.0**.
+> **Historical record, not current state.** For current state read `CLAUDE.md` in this repo, then the code. This file stopped being updated around v0.22.0; keep it for the reasoning behind past decisions.
 
 # BT Catalog — Project Handoff (current as of v0.22.0)
 

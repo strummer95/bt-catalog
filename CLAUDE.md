@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.25.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.26.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -169,12 +169,29 @@ Autoprice is cost times markup, rounded up to `.95`.
   drawer to "sent" client-side and every catalog quote request was silently lost. Never
   show a success state the server has not confirmed.
 - Verify Quick Quote price parity against the portal for a known combo, and decide whether
-  `retail` should send the doubled retail (current) or raw cost.
+  `retail` should send the doubled retail (current) or raw cost. **Read the open
+  `PRINT_TIERS` inversion in the bt-quote CLAUDE.md first.** Prices come from that engine,
+  and the fix to those tiers is a business decision needing Dillon's real print costs and
+  target margin. Report mismatches; don't change the tiers to make them agree.
 - Price Point Premium tees are tagged whole-page `better` rather than split good/better,
   pending Dillon.
 - **Next up for Boomer T's**: the Bruce AI integration. Quote step feeds a Woo cart with
   quote meta, and a Bruce embed joins on quote ID. First step is an event-discovery probe
   to find the design-submitted event.
+
+## PresStora bridge (0.26.0)
+
+`includes/bridge.php` adds `GET /boomerts/v1/bridge/style`: one style by number, with
+colors, sizes, specs **and cost**, so PresStora can use the SanMar styles this server
+already imported and is already whitelisted for. The route is `__return_true` on purpose
+because it checks a signature inside `bt_cat_bridge_auth()`; unsigned requests get 401.
+Cost must never leave through the public catalog routes, only through this signed one.
+This is PresStora reading from BT, not BT depending on PresStora.
+
+## Not in any repo
+
+The spirit wear lead page (`[bt_spiritwear]`) and fundraiser page (`[bt_fundraiser]`) are
+Code Snippets on the site, not part of this plugin or any repo.
 
 ## Working notes
 
