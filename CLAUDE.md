@@ -80,7 +80,11 @@ current **effective net** price, so it returns sale pricing during a sale window
 re-sync after the sale updates it back. Style cost is the lowest piece price carried by at least a
 quarter as many parts as the biggest price group, **never plain MIN across parts** (one closeout part
 priced PC78ZH under SanMar's own sale price). Expired/future-dated price rows are ignored.
-`bt_cat_sanmar_reprice_*` re-pulls pricing only for every SanMar row: queued on each update, then daily.
+`bt_cat_sanmar_reprice_*` re-pulls pricing only for every SanMar row: queued on each update, then nightly.
+
+**Prices stay current on their own.** Nightly: S&S refresh 08:00 UTC, SanMar re-price 09:00, EG-PRO
+re-import 10:00. The main BT Catalog page has a Prices panel (last-updated per supplier) and one
+"Update all prices now" button. Every refresh leaves `retail_override` alone.
 
 Requires on the live server: account onboarded for Web Services, boomerts.com server IP
 whitelisted by SanMar, port 8080 outbound open, php-soap enabled. All confirmed working.

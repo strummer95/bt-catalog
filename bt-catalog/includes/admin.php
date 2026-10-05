@@ -64,6 +64,25 @@ function bt_cat_admin_page() {
         echo '<div class="notice notice-success is-dismissible"><p>Update source saved.</p></div>';
     }
 
+    // One button: refresh prices from every supplier.
+    if (isset($_POST['bt_cat_update_prices'])) {
+        check_admin_referer('bt_cat_prices');
+        $msg = array();
+        if (function_exists('bt_cat_refresh_start')) {
+            $r = bt_cat_refresh_start(false);
+            $msg[] = !empty($r['error']) ? 'S&amp;S: ' . esc_html($r['error']) : 'S&amp;S: ' . (int) $r['queued'] . ' styles queued';
+        }
+        if (function_exists('bt_cat_sanmar_reprice_start')) {
+            $msg[] = 'SanMar: ' . (int) bt_cat_sanmar_reprice_start() . ' styles queued';
+        }
+        if (function_exists('bt_cat_egpro_import_all')) {
+            $r = bt_cat_egpro_import_all();
+            $msg[] = !empty($r['ok']) ? 'EG-PRO: ' . (int) $r['imported'] . ' styles updated' : 'EG-PRO: ' . esc_html($r['error'] ?? 'failed');
+        }
+        echo '<div class="notice notice-success is-dismissible"><p>Updating prices. ' . implode(' &middot; ', $msg)
+           . '. S&amp;S and SanMar finish in the background over the next hour or two; reload this page to watch.</p></div>';
+    }
+
     global $wpdb;
     $t    = bt_cat_table();
     $rows = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t");
@@ -89,6 +108,25 @@ function bt_cat_admin_page() {
                         &nbsp;<a href="<?php echo esc_url(admin_url('admin.php?page=bt-catalog-ss')); ?>">Manage on the S&amp;S Activewear page →</a></td></tr>
             </tbody>
         </table>
+
+        <h2>Prices</h2>
+        <?php
+            $ssPend = function_exists('bt_cat_refresh_pending') ? bt_cat_refresh_pending() : 0;
+            $smPend = function_exists('bt_cat_sanmar_reprice_pending') ? bt_cat_sanmar_reprice_pending() : 0;
+            $last   = function ($o) { $v = get_option($o, ''); return $v !== '' ? esc_html($v) : 'never'; };
+        ?>
+        <table class="widefat striped" style="max-width:620px;margin:8px 0 12px;font-size:15px">
+            <tbody>
+                <tr><td style="width:180px"><strong>S&amp;S</strong></td><td><?php echo $ssPend ? 'Updating: ' . (int) $ssPend . ' left' : 'Last updated ' . $last('bt_cat_refresh_last'); ?></td></tr>
+                <tr><td><strong>SanMar</strong></td><td><?php echo $smPend ? 'Updating: ' . (int) $smPend . ' left' : 'Last updated ' . $last('bt_cat_sanmar_reprice_last'); ?></td></tr>
+                <tr><td><strong>EG-PRO</strong></td><td>Last updated <?php echo $last('bt_cat_egpro_last'); ?></td></tr>
+            </tbody>
+        </table>
+        <form method="post">
+            <?php wp_nonce_field('bt_cat_prices'); ?>
+            <p><button type="submit" name="bt_cat_update_prices" value="1" class="button button-primary">Update all prices now</button>
+            <span class="description">Every supplier also updates on its own each night. Price overrides are never changed.</span></p>
+        </form>
 
         <hr style="margin:28px 0">
         <h2>Featured on default page</h2>

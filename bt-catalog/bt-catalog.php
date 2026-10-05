@@ -41,6 +41,8 @@ register_deactivation_hook(__FILE__, function () {
     if (defined('BT_CAT_REFRESH_HOOK')) wp_clear_scheduled_hook(BT_CAT_REFRESH_HOOK);
     if (defined('BT_CAT_REFRESH_DAILY_HOOK')) wp_clear_scheduled_hook(BT_CAT_REFRESH_DAILY_HOOK);
     if (defined('BT_CAT_SM_REPRICE_HOOK')) wp_clear_scheduled_hook(BT_CAT_SM_REPRICE_HOOK);
+    if (defined('BT_CAT_SM_REPRICE_DAILY_HOOK')) wp_clear_scheduled_hook(BT_CAT_SM_REPRICE_DAILY_HOOK);
+    if (defined('BT_CAT_EGPRO_DAILY_HOOK')) wp_clear_scheduled_hook(BT_CAT_EGPRO_DAILY_HOOK);
 });
 
 // Safety net: also make sure the table is current on version bumps.

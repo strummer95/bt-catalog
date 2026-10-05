@@ -306,8 +306,19 @@ function bt_cat_egpro_import_all() {
     }
 
     if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
+    update_option('bt_cat_egpro_last', current_time('mysql'), false);
     return array('ok' => true, 'imported' => $imported, 'skipped' => $skipped, 'pages' => $page);
 }
+
+/* Nightly re-pull at 10:00 UTC (5am Central) so EG-PRO prices stay current
+   without anyone clicking Import. The feed is a few pages, one request. */
+define('BT_CAT_EGPRO_DAILY_HOOK', 'bt_cat_egpro_daily');
+add_action(BT_CAT_EGPRO_DAILY_HOOK, 'bt_cat_egpro_import_all');
+add_action('init', function () {
+    if (!wp_next_scheduled(BT_CAT_EGPRO_DAILY_HOOK)) {
+        wp_schedule_event(strtotime('tomorrow 10:00 UTC'), 'daily', BT_CAT_EGPRO_DAILY_HOOK);
+    }
+});
 
 /** Read-only test: fetch page 1, parse the first real product. */
 function bt_cat_egpro_test() {

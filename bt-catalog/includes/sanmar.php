@@ -399,8 +399,9 @@ function bt_cat_sanmar_preview_pricing($style = 'PC61') {
    re-pulls pricing only (one call per style) for every imported SanMar row,
    ~25/min in the background, and rewrites cost + auto retail. Manual retail
    overrides are a separate column and are never touched. Queued on every
-   plugin update and again a day after each run finishes. */
+   plugin update and nightly. */
 define('BT_CAT_SM_REPRICE_HOOK', 'bt_cat_sanmar_reprice_tick');
+define('BT_CAT_SM_REPRICE_DAILY_HOOK', 'bt_cat_sanmar_reprice_daily');
 
 function bt_cat_sanmar_reprice_pending() {
     $q = get_option('bt_cat_sanmar_reprice_ids', array());
@@ -443,13 +444,18 @@ function bt_cat_sanmar_reprice_batch($n = 25) {
 }
 
 add_action(BT_CAT_SM_REPRICE_HOOK, function () {
-    if (bt_cat_sanmar_reprice_pending() === 0) {
-        // Daily restart (scheduled when the last run finished).
-        bt_cat_sanmar_reprice_start();
-    }
     $b = bt_cat_sanmar_reprice_batch(25);
-    if (!wp_next_scheduled(BT_CAT_SM_REPRICE_HOOK)) {
-        wp_schedule_single_event(time() + ($b['pending'] > 0 ? 60 : DAY_IN_SECONDS), BT_CAT_SM_REPRICE_HOOK);
+    if ($b['pending'] > 0 && !wp_next_scheduled(BT_CAT_SM_REPRICE_HOOK)) {
+        wp_schedule_single_event(time() + 60, BT_CAT_SM_REPRICE_HOOK);
+    }
+});
+add_action(BT_CAT_SM_REPRICE_DAILY_HOOK, function () {
+    if (bt_cat_sanmar_reprice_pending() === 0) bt_cat_sanmar_reprice_start();
+});
+// Nightly kickoff at 09:00 UTC (4am Central), an hour after the S&S refresh.
+add_action('init', function () {
+    if (!wp_next_scheduled(BT_CAT_SM_REPRICE_DAILY_HOOK)) {
+        wp_schedule_event(strtotime('tomorrow 09:00 UTC'), 'daily', BT_CAT_SM_REPRICE_DAILY_HOOK);
     }
 });
 
@@ -734,7 +740,7 @@ function bt_cat_sanmar_page() {
             <p style="margin-top:18px"><button type="submit" name="bt_cat_sanmar_reprice" value="1" class="button">Re-price SanMar items</button> <span class="description"><?php
                 $rp = bt_cat_sanmar_reprice_pending();
                 echo $rp ? 'Running: ' . (int) $rp . ' left, ' . (int) get_option('bt_cat_sanmar_reprice_changed', 0) . ' changed so far.'
-                         : 'Re-pulls your cost for every imported SanMar style (runs daily on its own). Last: ' . esc_html(get_option('bt_cat_sanmar_reprice_last', 'never')) . '.';
+                         : 'Re-pulls your cost for every imported SanMar style (runs nightly on its own). Last: ' . esc_html(get_option('bt_cat_sanmar_reprice_last', 'never')) . '.';
             ?></span></p>
             <p style="margin-top:18px"><button type="submit" name="bt_cat_cleanup_sanmar" value="1" class="button">Re-check imported items</button> <span class="description">Removes already-imported SanMar items that S&amp;S carries or that are on the skip list (run after editing the skip list).</span></p>
 
