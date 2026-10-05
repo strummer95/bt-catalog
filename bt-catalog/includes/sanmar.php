@@ -278,7 +278,55 @@ function bt_cat_sanmar_best_image($urls) {
     return $urls[0];
 }
 
-/** getConfigurationAndPricing -> lowest piece (your) cost. Tries wsVersion 1.0.0, Customer pricing. */
+/**
+ * Piece price for one part from its PartPrice rows. Rows outside their
+ * effective/expiry window are dropped (a past or future sale row was being
+ * read as today's cost), then the smallest-minQuantity row wins. A date that
+ * doesn't parse is treated as open. If every row is dated out, fall back to
+ * all of them rather than pricing the part at 0.
+ */
+function bt_cat_sanmar_piece_price($rows, $now = null) {
+    $now = $now === null ? time() : $now;
+    $live = array();
+    foreach ($rows as $row) {
+        $pr = isset($row['price']) ? (float) $row['price'] : 0;
+        if ($pr <= 0) continue;
+        $eff = !empty($row['priceEffectiveDate']) ? strtotime((string) $row['priceEffectiveDate']) : false;
+        $exp = !empty($row['priceExpiryDate'])    ? strtotime((string) $row['priceExpiryDate'])    : false;
+        // expiry is often date-only (midnight), so give it the whole day
+        $row['_live'] = !(($eff && $eff > $now) || ($exp && $exp + 86400 < $now));
+        $live[] = $row;
+    }
+    $use = array_filter($live, function ($r) { return $r['_live']; });
+    if (!$use) $use = $live;
+    $best = null; $bestQty = PHP_INT_MAX;
+    foreach ($use as $row) {
+        $q  = isset($row['minQuantity']) ? (int) $row['minQuantity'] : 1;
+        $pr = (float) $row['price'];
+        if ($q < $bestQty || ($q === $bestQty && $pr < $best)) { $bestQty = $q; $best = $pr; }
+    }
+    return $best;
+}
+
+/**
+ * Style cost from per-part piece prices: the lowest price carried by a real
+ * share of the parts (at least a quarter as many as the biggest price group).
+ * Plain MIN across parts let one odd part (a closeout colour, a stray SKU)
+ * set the price for the whole style, which priced PC78ZH below even SanMar's
+ * sale price. A plain mode fails the other way: S-XL and 3XL-6XL are both
+ * four sizes, so a few missing base parts hand the style the 3XL price.
+ */
+function bt_cat_sanmar_style_cost($piece) {
+    if (!$piece) return 0;
+    $n = array();
+    foreach ($piece as $pr) { $k = number_format((float) $pr, 2, '.', ''); $n[$k] = (isset($n[$k]) ? $n[$k] : 0) + 1; }
+    $floor = max($n) / 4;
+    $win = null;
+    foreach ($n as $k => $c) if ($c >= $floor && ($win === null || (float) $k < $win)) $win = (float) $k;
+    return $win;
+}
+
+/** getConfigurationAndPricing -> piece (your) cost. wsVersion 1.0.0, Customer pricing. */
 function bt_cat_sanmar_pricing($style) {
     $cr = bt_cat_sanmar_creds();
     $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRICE, 'getConfigurationAndPricing', array(
@@ -289,37 +337,121 @@ function bt_cat_sanmar_pricing($style) {
     ));
     if (!$r['ok']) return $r;
     // Structure: Configuration.PartArray.Part[] -> each PartPriceArray.PartPrice (single or list of qty breaks).
-    // Take the PIECE price (smallest minQuantity) per part; cost = lowest size's piece price ("from").
     $parts = isset($r['data']['Configuration']['PartArray']['Part'])
         ? bt_cat_sanmar_list($r['data']['Configuration']['PartArray']['Part']) : array();
     $piece = array();
+    $detail = array();
     foreach ($parts as $p) {
         $pp = isset($p['PartPriceArray']['PartPrice']) ? bt_cat_sanmar_list($p['PartPriceArray']['PartPrice']) : array();
-        $best = null; $bestQty = PHP_INT_MAX;
-        foreach ($pp as $row) {
-            $q  = isset($row['minQuantity']) ? (int) $row['minQuantity'] : 1;
-            $pr = isset($row['price']) ? (float) $row['price'] : 0;
-            if ($pr > 0 && $q < $bestQty) { $bestQty = $q; $best = $pr; }
-        }
+        $best = bt_cat_sanmar_piece_price($pp);
         if ($best !== null) $piece[] = $best;
+        $detail[] = array('part' => isset($p['partId']) ? (string) $p['partId'] : '', 'piece' => $best, 'rows' => $pp);
     }
-    $cost = $piece ? min($piece) : 0;
-    return array('ok' => true, 'cost' => $cost, 'request' => $r['request']);
+    if (!$piece) return array('ok' => false, 'error' => 'SanMar returned no prices for ' . $style, 'request' => $r['request']);
+    return array('ok' => true, 'cost' => bt_cat_sanmar_style_cost($piece), 'min' => min($piece), 'parts' => $detail, 'request' => $r['request']);
 }
 
-/** Dump the raw getConfigurationAndPricing structure (trimmed) to design the price parser. */
+/**
+ * Pricing check for one style: what the parser takes as cost, the spread of
+ * piece prices across parts, the raw breaks on the cheapest part, and what is
+ * stored now. Plain text so it can be pasted back.
+ */
 function bt_cat_sanmar_preview_pricing($style = 'PC61') {
-    $cr = bt_cat_sanmar_creds();
-    $r = bt_cat_sanmar_call(BT_SANMAR_WSDL_PRICE, 'getConfigurationAndPricing', array(
-        'wsVersion' => '1.0.0', 'id' => $cr['id'], 'password' => $cr['pw'],
-        'productId' => $style, 'currency' => 'USD', 'fobId' => '1',
-        'priceType' => 'Customer', 'localizationCountry' => 'US', 'localizationLanguage' => 'en',
-        'configurationType' => 'Blank',
-    ));
-    if (!$r['ok']) return array('ok' => false, 'message' => $r['error'], 'json' => "REQUEST:\n" . ($r['request'] ?? ''));
-    $data = bt_cat_sanmar_trim($r['data'], 3);
-    return array('ok' => true, 'message' => 'Pricing structure for "' . $style . '" (arrays trimmed to 3):', 'json' => wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    global $wpdb;
+    $pr = bt_cat_sanmar_pricing($style);
+    if (empty($pr['ok'])) return array('ok' => false, 'message' => $pr['error'] ?? 'pricing failed', 'json' => "REQUEST:\n" . ($pr['request'] ?? ''));
+
+    $groups = array();
+    $cheap  = null;
+    foreach ($pr['parts'] as $d) {
+        if ($d['piece'] === null) continue;
+        $k = number_format((float) $d['piece'], 2);
+        if (!isset($groups[$k])) $groups[$k] = array();
+        $groups[$k][] = $d['part'];
+        if ($cheap === null || $d['piece'] < $cheap['piece']) $cheap = $d;
+    }
+    ksort($groups, SORT_NUMERIC);
+    $out = "Piece price -> parts\n";
+    foreach ($groups as $k => $ids) {
+        $out .= sprintf("  $%s  x%d  (%s%s)\n", $k, count($ids), implode(', ', array_slice($ids, 0, 6)), count($ids) > 6 ? ', ...' : '');
+    }
+    if ($cheap) {
+        $out .= "\nCheapest part " . $cheap['part'] . " raw breaks:\n";
+        foreach ($cheap['rows'] as $row) {
+            $out .= sprintf("  minQty %s  $%s  %s  %s -> %s\n",
+                $row['minQuantity'] ?? '?', $row['price'] ?? '?', $row['priceUom'] ?? '',
+                $row['priceEffectiveDate'] ?? '-', $row['priceExpiryDate'] ?? '-');
+        }
+    }
+    $cost = (float) $pr['cost'];
+    $msg  = sprintf('%s: cost $%.2f -> retail $%.2f (lowest single part $%.2f).', $style, $cost, bt_cat_autoprice($cost), (float) $pr['min']);
+    $row  = $wpdb->get_row($wpdb->prepare("SELECT cost, retail, retail_override FROM " . bt_cat_table() . " WHERE supplier='sanmar' AND supplier_style_id=%s", $style), ARRAY_A);
+    if ($row) {
+        $msg .= sprintf(' Stored now: cost $%.2f -> retail $%.2f%s.', (float) $row['cost'], (float) $row['retail'],
+            ((float) $row['retail_override'] > 0) ? sprintf(' (override $%.2f wins)', (float) $row['retail_override']) : '');
+    }
+    return array('ok' => true, 'message' => $msg, 'json' => $out);
 }
+
+/* ---- SanMar re-price ------------------------------------------------------
+   SanMar cost was only ever read at import, so a row imported during a sale
+   (or under the old MIN-across-parts parser) kept that price for good. This
+   re-pulls pricing only (one call per style) for every imported SanMar row,
+   ~25/min in the background, and rewrites cost + auto retail. Manual retail
+   overrides are a separate column and are never touched. Queued on every
+   plugin update and again a day after each run finishes. */
+define('BT_CAT_SM_REPRICE_HOOK', 'bt_cat_sanmar_reprice_tick');
+
+function bt_cat_sanmar_reprice_pending() {
+    $q = get_option('bt_cat_sanmar_reprice_ids', array());
+    return is_array($q) ? count($q) : 0;
+}
+
+function bt_cat_sanmar_reprice_start() {
+    global $wpdb;
+    $ids = $wpdb->get_col("SELECT id FROM " . bt_cat_table() . " WHERE supplier='sanmar' ORDER BY id ASC");
+    update_option('bt_cat_sanmar_reprice_ids', array_map('intval', (array) $ids), false);
+    update_option('bt_cat_sanmar_reprice_changed', 0, false);
+    if (!wp_next_scheduled(BT_CAT_SM_REPRICE_HOOK)) wp_schedule_single_event(time() + 5, BT_CAT_SM_REPRICE_HOOK);
+    return count($ids);
+}
+
+function bt_cat_sanmar_reprice_batch($n = 25) {
+    global $wpdb;
+    $t = bt_cat_table();
+    $q = get_option('bt_cat_sanmar_reprice_ids', array());
+    if (!is_array($q)) $q = array();
+    $take = array_splice($q, 0, $n);
+    $changed = (int) get_option('bt_cat_sanmar_reprice_changed', 0);
+    foreach ($take as $id) {
+        $row = $wpdb->get_row($wpdb->prepare("SELECT id, supplier_style_id, cost FROM $t WHERE id=%d", (int) $id), ARRAY_A);
+        if (!$row) continue;
+        $pr = bt_cat_sanmar_pricing($row['supplier_style_id']);
+        if (empty($pr['ok']) || (float) $pr['cost'] <= 0) continue;   // keep the stored price on a failed call
+        $cost = round((float) $pr['cost'], 2);
+        if (abs($cost - (float) $row['cost']) < 0.005) continue;
+        $wpdb->update($t, array('cost' => $cost, 'retail' => bt_cat_autoprice($cost), 'updated_at' => current_time('mysql')), array('id' => $row['id']));
+        $changed++;
+    }
+    update_option('bt_cat_sanmar_reprice_ids', array_values($q), false);
+    update_option('bt_cat_sanmar_reprice_changed', $changed, false);
+    if (empty($q)) {
+        update_option('bt_cat_sanmar_reprice_last', current_time('mysql') . ' (' . $changed . ' changed)', false);
+        if (function_exists('bt_cat_facets_flush')) bt_cat_facets_flush();
+    }
+    return array('pending' => count($q), 'changed' => $changed);
+}
+
+add_action(BT_CAT_SM_REPRICE_HOOK, function () {
+    if (bt_cat_sanmar_reprice_pending() === 0) {
+        // Daily restart (scheduled when the last run finished).
+        bt_cat_sanmar_reprice_start();
+    }
+    $b = bt_cat_sanmar_reprice_batch(25);
+    if (!wp_next_scheduled(BT_CAT_SM_REPRICE_HOOK)) {
+        wp_schedule_single_event(time() + ($b['pending'] > 0 ? 60 : DAY_IN_SECONDS), BT_CAT_SM_REPRICE_HOOK);
+    }
+});
 
 /** Assemble a full catalog row for one SanMar style (no DB write). */
 function bt_cat_sanmar_assemble($style) {
@@ -454,6 +586,12 @@ function bt_cat_sanmar_page() {
         $st = bt_cat_sanmar_stats(); $st['running'] = false; update_option('bt_cat_sanmar_stats', wp_json_encode($st), false);
         echo '<div class="notice notice-warning is-dismissible"><p>Import paused.</p></div>';
     }
+    if (isset($_POST['bt_cat_sanmar_reprice'])) {
+        check_admin_referer('bt_cat_sanmar_import');
+        $n = bt_cat_sanmar_reprice_start();
+        $b = bt_cat_sanmar_reprice_batch(25);
+        echo '<div class="notice notice-success is-dismissible"><p>Re-pricing ' . (int) $n . ' SanMar styles in the background (~25/min). ' . (int) $b['changed'] . ' changed so far.</p></div>';
+    }
     if (isset($_POST['bt_cat_cleanup_sanmar'])) {
         check_admin_referer('bt_cat_sanmar_import');
         $n = bt_cat_sanmar_cleanup();
@@ -506,7 +644,7 @@ function bt_cat_sanmar_page() {
                 &nbsp;<button type="submit" name="bt_cat_test_sanmar" value="1" class="button">Test connection</button>
                 &nbsp;<button type="submit" name="bt_cat_preview_sanmar" value="1" class="button">Preview structure</button>
                 &nbsp;<button type="submit" name="bt_cat_full_sanmar" value="1" class="button button-secondary">Preview full import</button>
-                &nbsp;<button type="submit" name="bt_cat_pricejson_sanmar" value="1" class="button">Preview pricing</button>
+                &nbsp;<button type="submit" name="bt_cat_pricejson_sanmar" value="1" class="button">Check pricing</button>
             </p>
         </form>
 
@@ -515,7 +653,7 @@ function bt_cat_sanmar_page() {
                 <p><strong><?php echo esc_html($pricejson['message']); ?></strong></p>
                 <?php if (!empty($pricejson['json'])): ?>
                     <textarea readonly rows="20" class="large-text code" style="font-size:11px"><?php echo esc_textarea($pricejson['json']); ?></textarea>
-                    <p class="description">Paste this to me — it shows how SanMar structures the price breaks (piece price vs quantity discounts vs sale) so I parse your real cost correctly.</p>
+                    <p class="description">Compare the cost above with SanMar.com's piece price for the same style. If they differ, paste this box to Claude.</p>
                 <?php endif; ?>
             </div>
         <?php endif; ?>
@@ -593,6 +731,11 @@ function bt_cat_sanmar_page() {
                 <button type="submit" name="bt_cat_jump_queue" value="1" class="button">Move to front &amp; run 25</button>
             </p>
 
+            <p style="margin-top:18px"><button type="submit" name="bt_cat_sanmar_reprice" value="1" class="button">Re-price SanMar items</button> <span class="description"><?php
+                $rp = bt_cat_sanmar_reprice_pending();
+                echo $rp ? 'Running: ' . (int) $rp . ' left, ' . (int) get_option('bt_cat_sanmar_reprice_changed', 0) . ' changed so far.'
+                         : 'Re-pulls your cost for every imported SanMar style (runs daily on its own). Last: ' . esc_html(get_option('bt_cat_sanmar_reprice_last', 'never')) . '.';
+            ?></span></p>
             <p style="margin-top:18px"><button type="submit" name="bt_cat_cleanup_sanmar" value="1" class="button">Re-check imported items</button> <span class="description">Removes already-imported SanMar items that S&amp;S carries or that are on the skip list (run after editing the skip list).</span></p>
 
             <?php if ($discover !== null): ?>

@@ -3,13 +3,13 @@
 Plugin Name: BT Catalog
 Plugin URI: https://boomerts.com
 Description: Boomer T's unified blank-apparel catalog (S&S Activewear + SanMar + EG-PRO) with quote flow. Pulls live product data into a local cache and renders it via the [bt_catalog] shortcode.
-Version: 0.26.0
+Version: 0.27.0
 Author: Duck and Rabbit Co.
 */
 
 if (!defined('ABSPATH')) exit;
 
-define('BT_CAT_VERSION', '0.26.0');
+define('BT_CAT_VERSION', '0.27.0');
 define('BT_CAT_DIR', plugin_dir_path(__FILE__));
 define('BT_CAT_URL', plugin_dir_url(__FILE__));
 define('BT_CAT_FILE', __FILE__);
@@ -40,6 +40,7 @@ register_deactivation_hook(__FILE__, function () {
     wp_clear_scheduled_hook(BT_CAT_CRON_HOOK);
     if (defined('BT_CAT_REFRESH_HOOK')) wp_clear_scheduled_hook(BT_CAT_REFRESH_HOOK);
     if (defined('BT_CAT_REFRESH_DAILY_HOOK')) wp_clear_scheduled_hook(BT_CAT_REFRESH_DAILY_HOOK);
+    if (defined('BT_CAT_SM_REPRICE_HOOK')) wp_clear_scheduled_hook(BT_CAT_SM_REPRICE_HOOK);
 });
 
 // Safety net: also make sure the table is current on version bumps.
@@ -65,6 +66,11 @@ add_action('init', function () {
         if (function_exists('bt_cat_refresh_start') && function_exists('bt_cat_refresh_pending')
             && bt_cat_refresh_pending() === 0) {
             bt_cat_refresh_start(false);
+        }
+        // Same for SanMar: cost was only read at import. Queue a re-price
+        // (pricing call only, background, ~25/min) unless one is mid-run.
+        if (function_exists('bt_cat_sanmar_reprice_start') && bt_cat_sanmar_reprice_pending() === 0) {
+            bt_cat_sanmar_reprice_start();
         }
     }
 });

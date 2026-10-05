@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.26.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.27.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -77,7 +77,10 @@ MediaContent `getMediaContent` at 1.1.0, PricingAndConfiguration
 `getConfigurationAndPricing` at 1.0.0 with `priceType` Customer. `getProduct` returns no
 hex, no images and no price, which is why all three are needed. Customer pricing is the
 current **effective net** price, so it returns sale pricing during a sale window and a
-re-sync after the sale updates it back.
+re-sync after the sale updates it back. Style cost is the lowest piece price carried by at least a
+quarter as many parts as the biggest price group, **never plain MIN across parts** (one closeout part
+priced PC78ZH under SanMar's own sale price). Expired/future-dated price rows are ignored.
+`bt_cat_sanmar_reprice_*` re-pulls pricing only for every SanMar row: queued on each update, then daily.
 
 Requires on the live server: account onboarded for Web Services, boomerts.com server IP
 whitelisted by SanMar, port 8080 outbound open, php-soap enabled. All confirmed working.
