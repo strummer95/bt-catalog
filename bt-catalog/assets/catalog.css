@@ -74,3 +74,13 @@
 #btcat-root .chip:hover{background:#fef2fa;color:var(--pink)}
 /* Nine filter menus need the full row; they wrap and empty ones hide entirely. */
 #btcat-root .cmenus{margin-left:0;flex-wrap:wrap}
+
+/* Active-filter chips stay on one row: the right side takes the free width,
+   chips never wrap their own text, and many chips scroll sideways. */
+#btcat-root .toolbar{flex-wrap:nowrap;gap:14px}
+#btcat-root .toolbar .count{flex-shrink:0;white-space:nowrap}
+#btcat-root .tbright{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:1;min-width:0}
+#btcat-root #btActive{display:flex;flex-wrap:nowrap;gap:6px;min-width:0;overflow-x:auto;scrollbar-width:none}
+#btcat-root #btActive::-webkit-scrollbar{display:none}
+#btcat-root #btActive .chip{flex-shrink:0;white-space:nowrap;margin-left:0}
+#btcat-root .tbright .sort{flex-shrink:0}

@@ -102,7 +102,7 @@
         '<div class="fsec collapsed"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
       '</aside>' +
       '<main>' +
-      '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div style="display:flex;align-items:center;gap:8px"><div id="btActive"></div>' +
+      '<div class="toolbar"><div class="count"><b id="btCount">0</b> styles</div><div class="tbright"><div id="btActive"></div>' +
         '<select id="btSort" class="sort">' +
           '<option value="">Sort: Featured</option>' +
           '<option value="price_asc">Price: Low to High</option>' +
