@@ -83,4 +83,7 @@
 #btcat-root #btActive{display:flex;flex-wrap:nowrap;gap:6px;min-width:0;overflow-x:auto;scrollbar-width:none}
 #btcat-root #btActive::-webkit-scrollbar{display:none}
 #btcat-root #btActive .chip{flex-shrink:0;white-space:nowrap;margin-left:0}
-#btcat-root .tbright .sort{flex-shrink:0}
+/* The site theme sets select{width:100%}; unchecked, the sort menu ate the
+   whole row and squeezed the chips to zero width. */
+#btcat-root .tbright .sort{flex:0 0 auto;width:auto!important;max-width:220px}
+#btcat-root .tbright #btActive{flex:0 1 auto}
