@@ -165,14 +165,17 @@ function bt_cat_derive_aud($row) {
 function bt_cat_attr_bucket($row) {
     $cat = isset($row['category']) ? $row['category'] : '';
     $b   = function_exists('bt_cat_norm_category') ? bt_cat_norm_category($cat) : '';
-    if ($b !== '') return $b;
-    // Bare gender/age categories normalize to '' — fall back to the title.
+    if ($b !== '' && function_exists('bt_cat_cat_buckets') && array_key_exists($b, bt_cat_cat_buckets())) return $b;
+    // Bare gender/age categories normalize to '', and an unrecognised one
+    // ("Long Sleeve") comes back raw and became its own category, so a long
+    // sleeve tee filed there was never a T-Shirt and never got a sleeve.
+    // Either way, fall back to the title before keeping the raw label.
     $hay = bt_cat_attr_hay($row);
     if (bt_cat_attr_has($hay, array('hoodie', 'sweatshirt', 'fleece'))) return 'Hoodies & Fleece';
     if (bt_cat_attr_has($hay, array('polo')))                          return 'Polos';
     if (bt_cat_attr_has($hay, array('tank')))                          return 'Tanks';
     if (bt_cat_attr_has($hay, array('tee', 't-shirt')))                return 'T-Shirts';
-    return '';
+    return $b;
 }
 
 /** Buckets that have a neckline at all (a tote bag does not). */

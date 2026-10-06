@@ -61,6 +61,10 @@ function bt_cat_read_params($req) {
     );
 }
 
+/* Long Sleeve Tees is a pseudo-category like Performance: T-Shirts bucket plus
+   the derived sleeve column, so it can never disagree with the Sleeve filter. */
+define('BT_CAT_LS_TEES', 'Long Sleeve Tees');
+
 /**
  * Resolve a `category` parameter to a canonical bucket label. Accepts a bucket
  * name directly, the Performance pseudo-category, or a raw supplier category
@@ -68,7 +72,7 @@ function bt_cat_read_params($req) {
  */
 function bt_cat_bucket_param($raw) {
     $raw = sanitize_text_field((string) $raw);
-    if ($raw === '' || $raw === 'Performance') return $raw;
+    if ($raw === '' || $raw === 'Performance' || $raw === BT_CAT_LS_TEES) return $raw;
     $buckets = bt_cat_cat_buckets();
     if (isset($buckets[$raw])) return $raw;
     $norm = bt_cat_norm_category($raw);
@@ -110,6 +114,8 @@ function bt_cat_filter_where($p, $skip = '') {
     if ($skip !== 'category' && $p['category'] !== '') {
         if ($p['category'] === 'Performance') {
             $where[] = "perf = 1";
+        } elseif ($p['category'] === BT_CAT_LS_TEES) {
+            $where[] = "bucket = 'T-Shirts' AND sleeve = 'long'";
         } else {
             // Exact match on the derived bucket column. This used to expand the
             // bucket back into LIKE substrings, which quietly matched the wrong
@@ -497,8 +503,18 @@ function bt_cat_rest_facets($req) {
     $perfN = (int) ($wp2['args'] ? $wpdb->get_var($wpdb->prepare($psql, $wp2['args']))
                                  : $wpdb->get_var($psql));
     if ($perfN > 0) $catCounts['Performance'] = $perfN;
+    $lsql = "SELECT COUNT(*) FROM $t WHERE {$wp2['sql']} AND bucket = 'T-Shirts' AND sleeve = 'long'";
+    $lsN  = (int) ($wp2['args'] ? $wpdb->get_var($wpdb->prepare($lsql, $wp2['args']))
+                                : $wpdb->get_var($lsql));
+    if ($lsN > 0) $catCounts[BT_CAT_LS_TEES] = $lsN;
     $catOrder = array_keys($catCounts);
     sort($catOrder);
+    // Long Sleeve Tees sits directly under T-Shirts, not alphabetically.
+    if ($lsN > 0) {
+        $catOrder = array_values(array_diff($catOrder, array(BT_CAT_LS_TEES)));
+        $at = array_search('T-Shirts', $catOrder, true);
+        array_splice($catOrder, $at === false ? count($catOrder) : $at + 1, 0, array(BT_CAT_LS_TEES));
+    }
     $cats = bt_cat_facet_out($catCounts, $catOrder);
 
     // --- derived single-value attributes ---

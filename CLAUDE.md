@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.27.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.28.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -161,6 +161,9 @@ Quality tiers (`tiers.php`) are a static style-number map from the SanMar Naviga
 excluded from tiers**, though Nike performance items do still show under Performance.
 Performance is detected from fabric and specs, not names, and is surfaced as a synthetic
 category that overlaps others rather than as its own filter group.
+**Long Sleeve Tees** (`BT_CAT_LS_TEES`, 0.28.0) is a second synthetic category, `bucket='T-Shirts' AND
+sleeve='long'`, ordered right after T-Shirts. An unrecognized supplier category no longer becomes the
+bucket outright: `bt_cat_attr_bucket()` tries the title first and keeps the raw label only as a last resort.
 
 ## Structure
 
