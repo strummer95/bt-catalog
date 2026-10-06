@@ -156,6 +156,7 @@ function bt_cat_install() {
         closure VARCHAR(16) NOT NULL DEFAULT '',
         size_set VARCHAR(255) NOT NULL DEFAULT '',
         color_fams VARCHAR(120) NOT NULL DEFAULT '',
+        material VARCHAR(16) NOT NULL DEFAULT '',
         active TINYINT(1) NOT NULL DEFAULT 1,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
@@ -169,7 +170,8 @@ function bt_cat_install() {
         KEY aud (aud),
         KEY neck (neck),
         KEY sleeve (sleeve),
-        KEY closure (closure)
+        KEY closure (closure),
+        KEY material (material)
     ) $charset;";
 
     dbDelta($sql);
@@ -194,7 +196,7 @@ function bt_cat_upsert($row) {
         'cost' => 0, 'sale_cost' => 0, 'retail' => 0, 'detail_done' => 1,
         'tier' => '', 'perf' => 0, 'active' => 1,
         'bucket' => '', 'aud' => '', 'neck' => '', 'sleeve' => '', 'closure' => '',
-        'size_set' => '', 'color_fams' => '',
+        'size_set' => '', 'color_fams' => '', 'material' => '',
     );
     $row = array_merge($defaults, array_intersect_key($row, $defaults));
     if ($row['tier'] === '' && function_exists('bt_cat_tier_for')) {

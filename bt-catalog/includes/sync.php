@@ -140,7 +140,7 @@ function bt_cat_sync_batch($n = BT_CAT_BATCH) {
     set_transient('bt_cat_lock', 1, 55);
 
     $rows = $wpdb->get_results(
-        $wpdb->prepare("SELECT id, supplier_style_id, name, category FROM $t WHERE detail_done=0 ORDER BY id ASC LIMIT %d", $n),
+        $wpdb->prepare("SELECT id, supplier_style_id, name, category, description FROM $t WHERE detail_done=0 ORDER BY id ASC LIMIT %d", $n),
         ARRAY_A
     );
     $processed = 0;
@@ -179,6 +179,8 @@ function bt_cat_sync_batch($n = BT_CAT_BATCH) {
             'category' => $row['category'],
             'sizes'    => $fields['sizes'],
             'colors'   => $fields['colors'],
+            'specs'       => $fields['specs'],
+            'description' => (string) $row['description'],
         )));
         $wpdb->update($t, $fields, array('id' => $row['id']));
         $processed++;
@@ -296,7 +298,7 @@ function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
     $processed = 0;
 
     foreach ($take as $i => $id) {
-        $row = $wpdb->get_row($wpdb->prepare("SELECT id, supplier_style_id, name, category FROM $t WHERE id=%d", (int) $id), ARRAY_A);
+        $row = $wpdb->get_row($wpdb->prepare("SELECT id, supplier_style_id, name, category, description FROM $t WHERE id=%d", (int) $id), ARRAY_A);
         if (!$row) continue;
         $red = bt_cat_ss_reduce($row['supplier_style_id']);
         if (empty($red['ok'])) {
@@ -323,6 +325,8 @@ function bt_cat_refresh_batch($n = BT_CAT_BATCH) {
             'category' => $row['category'],
             'sizes'    => $fields['sizes'],
             'colors'   => $fields['colors'],
+            'specs'       => $fields['specs'],
+            'description' => (string) $row['description'],
         )));
         $wpdb->update($t, $fields, array('id' => $row['id']));
         $processed++;

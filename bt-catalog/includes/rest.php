@@ -56,6 +56,7 @@ function bt_cat_read_params($req) {
         'neck'     => bt_cat_attr_key('neck',    (string) $req->get_param('neck')),
         'sleeve'   => bt_cat_attr_key('sleeve',  (string) $req->get_param('sleeve')),
         'closure'  => bt_cat_attr_key('closure', (string) $req->get_param('closure')),
+        'material' => bt_cat_attr_key('material', (string) $req->get_param('material')),
         'size'     => bt_cat_size_canon((string) $req->get_param('size')),
         'quality'  => bt_cat_quality_key((string) $req->get_param('quality')),
     );
@@ -138,7 +139,7 @@ function bt_cat_filter_where($p, $skip = '') {
         foreach ($terms as $term) { $args[] = '%' . $wpdb->esc_like($term) . '%'; }
     }
     // Derived single-value columns: one bound equality each.
-    foreach (array('aud', 'neck', 'sleeve', 'closure') as $k) {
+    foreach (array('aud', 'neck', 'sleeve', 'closure', 'material') as $k) {
         if ($skip === $k || $p[$k] === '') continue;
         $where[] = "$k = %s";
         $args[]  = $p[$k];
@@ -506,7 +507,10 @@ function bt_cat_rest_facets($req) {
     $lsql = "SELECT COUNT(*) FROM $t WHERE {$wp2['sql']} AND bucket = 'T-Shirts' AND sleeve = 'long'";
     $lsN  = (int) ($wp2['args'] ? $wpdb->get_var($wpdb->prepare($lsql, $wp2['args']))
                                 : $wpdb->get_var($lsql));
-    if ($lsN > 0) $catCounts[BT_CAT_LS_TEES] = $lsN;
+    // Hidden while a Sleeve filter is on: T-Shirts then already counts only
+    // that sleeve, so both rows showed the same number and read as a bug.
+    if ($lsN > 0 && $p['sleeve'] === '') $catCounts[BT_CAT_LS_TEES] = $lsN;
+    else $lsN = 0;
     $catOrder = array_keys($catCounts);
     sort($catOrder);
     // Long Sleeve Tees sits directly under T-Shirts, not alphabetically.
@@ -542,6 +546,7 @@ function bt_cat_rest_facets($req) {
         'necks'      => $attr['neck'],
         'sleeves'    => $attr['sleeve'],
         'closures'   => $attr['closure'],
+        'materials'  => $attr['material'],
         'sizes'      => $sizes,
         'colors'     => $colors,
         'qualities'  => $quals,

@@ -8,7 +8,7 @@
     ['Red','#b3132a'],['Green','#1f7a44'],['Yellow','#e8a417'],['Orange','#e8601c'],
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
-  var F = { s:'', brand:'', category:'', fit:'', neck:'', sleeve:'', closure:'', size:'', color:'', quality:'', sort:'', page:1 };
+  var F = { s:'', brand:'', category:'', fit:'', neck:'', sleeve:'', closure:'', material:'', size:'', color:'', quality:'', sort:'', page:1 };
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
@@ -24,6 +24,7 @@
     if (F.neck)     q.push('neck=' + encodeURIComponent(F.neck));
     if (F.sleeve)   q.push('sleeve=' + encodeURIComponent(F.sleeve));
     if (F.closure)  q.push('closure=' + encodeURIComponent(F.closure));
+    if (F.material) q.push('material=' + encodeURIComponent(F.material));
     if (F.size)     q.push('size=' + encodeURIComponent(F.size));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
@@ -43,6 +44,7 @@
     F.neck     = p.get('neck') || '';
     F.sleeve   = p.get('sleeve') || '';
     F.closure  = p.get('closure') || '';
+    F.material = p.get('material') || '';
     F.size     = p.get('size') || '';
     F.color    = p.get('color') || '';
     F.quality  = p.get('quality') || '';
@@ -79,6 +81,7 @@
         '<div class="cm"><span class="cmlabel">Neckline <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mNeck"></div></div>' +
         '<div class="cm"><span class="cmlabel">Sleeve <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mSleeve"></div></div>' +
         '<div class="cm"><span class="cmlabel">Style <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mClosure"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Material <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mMaterial"></div></div>' +
         '<div class="cm"><span class="cmlabel">Size <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mSize"></div></div>' +
         '<div class="cm"><span class="cmlabel">Colors <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mColors"></div></div>' +
         '<div class="cm"><span class="cmlabel">Quality <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mQuality"></div></div>' +
@@ -92,6 +95,7 @@
         '<div class="fsec collapsed"><div class="fhead">Neckline</div><div class="fbody" id="fNeck"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Sleeve Length</div><div class="fbody" id="fSleeve"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Style</div><div class="fbody" id="fClosure"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Material</div><div class="fbody" id="fMaterial"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Size</div><div class="fbody fsizes" id="fSize"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
@@ -141,6 +145,7 @@
     { key:'neck',     src:'necks',      menu:'mNeck',    side:'fNeck'    },
     { key:'sleeve',   src:'sleeves',    menu:'mSleeve',  side:'fSleeve'  },
     { key:'closure',  src:'closures',   menu:'mClosure', side:'fClosure' },
+    { key:'material', src:'materials',  menu:'mMaterial', side:'fMaterial' },
     { key:'size',     src:'sizes',      menu:'mSize',    side:'fSize'    },
     { key:'color',    src:'colors',     menu:'mColors',  side:'fColors', swatch:true },
     { key:'brand',    src:'brands',     menu:'mBrands',  side:'fBrands', cols:true   },
@@ -224,6 +229,7 @@
     if (F.neck)     q.push('neck=' + encodeURIComponent(F.neck));
     if (F.sleeve)   q.push('sleeve=' + encodeURIComponent(F.sleeve));
     if (F.closure)  q.push('closure=' + encodeURIComponent(F.closure));
+    if (F.material) q.push('material=' + encodeURIComponent(F.material));
     if (F.size)     q.push('size=' + encodeURIComponent(F.size));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
@@ -232,7 +238,7 @@
   }
   function anyFilter(){
     return !!(F.s || F.brand || F.category || F.fit || F.neck || F.sleeve ||
-              F.closure || F.size || F.color || F.quality || F.sort);
+              F.closure || F.material || F.size || F.color || F.quality || F.sort);
   }
 
   function setFilter(key, val){

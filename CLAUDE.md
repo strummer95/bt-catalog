@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.28.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.29.0**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -122,6 +122,11 @@ Rules that matter:
 
 - Name and category are authoritative. **Description is marketing copy and stays out of
   it.**
+  The one exception is `material` (0.29.0, cotton/poly/blend/other): fiber content exists nowhere else,
+  so `bt_cat_derive_material()` reads specs + description, but only a percentage composition
+  statement, first one wins (heather exceptions come after), 85%+ of one fiber names it. Partial
+  callers of `bt_cat_derive_attrs()` that pass no description/specs get no `material` key, so they
+  never blank it.
 - An attribute that can't be determined stays `''`, and an empty value is never offered as
   a filter. That alone is what makes "no Sleeve Length on a hat" work.
 - Detection order: bucket gate first, then explicit tokens, then a type default (unmarked
@@ -162,7 +167,8 @@ excluded from tiers**, though Nike performance items do still show under Perform
 Performance is detected from fabric and specs, not names, and is surfaced as a synthetic
 category that overlaps others rather than as its own filter group.
 **Long Sleeve Tees** (`BT_CAT_LS_TEES`, 0.28.0) is a second synthetic category, `bucket='T-Shirts' AND
-sleeve='long'`, ordered right after T-Shirts. An unrecognized supplier category no longer becomes the
+sleeve='long'`, ordered right after T-Shirts, and hidden while a Sleeve filter is active (otherwise it shows the
+same count as T-Shirts). An unrecognized supplier category no longer becomes the
 bucket outright: `bt_cat_attr_bucket()` tries the title first and keeps the raw label only as a last resort.
 
 ## Structure

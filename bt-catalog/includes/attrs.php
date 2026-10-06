@@ -75,6 +75,15 @@ function bt_cat_attr_defs() {
                 'long'         => 'Long Sleeve',
             ),
         ),
+        'material' => array(
+            'col' => 'material', 'param' => 'material', 'label' => 'Material',
+            'values' => array(
+                'cotton' => 'Cotton',
+                'poly'   => 'Polyester',
+                'blend'  => 'Blends',
+                'other'  => 'Other',
+            ),
+        ),
         'closure' => array(
             'col' => 'closure', 'param' => 'closure', 'label' => 'Style',
             'values' => array(
@@ -385,6 +394,68 @@ function bt_cat_color_families() {
                  'Yellow', 'Orange', 'Pink', 'Purple', 'Neutral');
 }
 
+/**
+ * Fabric content: cotton / poly / blend / other, or '' when not stated.
+ *
+ * The one attribute that has to read the description: suppliers put fiber
+ * content nowhere else (EG-PRO's Fabric spec aside). It only reads a
+ * composition STATEMENT -- "100% ring-spun cotton", "60% cotton/40% polyester",
+ * "52/48 cotton/poly" -- never loose marketing words, and the FIRST one wins,
+ * because descriptions list heather exceptions after the main fabric
+ * ("100% cotton; Sport Grey is 90/10"). A fiber at 85% or more names the
+ * garment (95/5 cotton/spandex is cotton); anything less even is a blend.
+ */
+function bt_cat_derive_material($row) {
+    $txt = (isset($row['specs']) ? (string) $row['specs'] : '') . ' . ' .
+           (isset($row['description']) ? (string) $row['description'] : '');
+    $txt = strtolower(html_entity_decode(strip_tags(str_replace(array('<', '<'), array(' <', ' '), $txt)), ENT_QUOTES, 'UTF-8'));
+    $fib = 'polyester|poly|cotton|rayon|viscose|modal|lyocell|tencel|bamboo|spandex|elastane|lycra|nylon|acrylic|merino|wool|linen|hemp';
+    $mix = null;
+
+    if (preg_match_all('~\d{1,3}\s*(?:%|/\s*\d)~', $txt, $cand, PREG_OFFSET_CAPTURE)) {
+        foreach ($cand[0] as $c) {
+            $win = substr($txt, $c[1], 140);
+            $win = preg_split('~[;()\n*]|\.\s|\bwith\b|\bexcept\b~', $win)[0];
+            $m = array();
+            if (preg_match('~^(\d{1,3})\s*/\s*(\d{1,3})(?:\s*/\s*(\d{1,3}))?~', $win, $n)) {
+                $nums = array_values(array_filter(array_slice($n, 1), 'strlen'));
+                $sum  = array_sum($nums);
+                if ($sum < 95 || $sum > 101) continue;          // "1/4-zip", not a fabric
+                preg_match_all('~\b(' . $fib . ')~', $win, $f);
+                $fibers = array_values(array_unique($f[1]));
+                if (count($fibers) < count($nums)) continue;
+                foreach ($nums as $i => $v) $m[$fibers[$i]] = (isset($m[$fibers[$i]]) ? $m[$fibers[$i]] : 0) + (int) $v;
+            } else {
+                preg_match_all('~(\d{1,3})\s*%\s*(?:[a-z\x{00ae}\x{2122}\-]+\s+){0,4}?(' . $fib . ')~u', $win, $pp, PREG_SET_ORDER);
+                // Pairs in order until they make 100%: "100% nylon shell, 100%
+                // polyester lining" is a nylon jacket, not a 200% one.
+                foreach ($pp as $x) {
+                    $m[$x[2]] = (isset($m[$x[2]]) ? $m[$x[2]] : 0) + (int) $x[1];
+                    if (array_sum($m) >= 95) break;
+                }
+                if (!$m || array_sum($m) < 95 || array_sum($m) > 101) continue;
+            }
+            $mix = $m;
+            break;
+        }
+    }
+    if ($mix === null) {
+        $hay = bt_cat_attr_hay($row);
+        return bt_cat_attr_has($hay, array('tri-blend', 'triblend', 'tri blend', 'cvc')) ? 'blend' : '';
+    }
+    $norm = array();
+    foreach ($mix as $k => $v) {
+        $k = ($k === 'poly') ? 'polyester' : $k;
+        $norm[$k] = (isset($norm[$k]) ? $norm[$k] : 0) + $v;
+    }
+    arsort($norm);
+    $top = key($norm);
+    if (reset($norm) < 85) return 'blend';
+    if ($top === 'cotton')    return 'cotton';
+    if ($top === 'polyester') return 'poly';
+    return 'other';
+}
+
 /* ============================== write path ============================== */
 
 /** All derived attributes for one row, ready to merge into an upsert. */
@@ -399,6 +470,11 @@ function bt_cat_derive_attrs($row) {
         'closure'    => $closure,
         'size_set'   => bt_cat_derive_sizes($row),
         'color_fams' => bt_cat_derive_color_fams($row),
+    ) + (
+        // Material reads description/specs. A partial caller that doesn't pass
+        // them (the S&S seed) must not blank a material it never looked at.
+        (array_key_exists('description', $row) || array_key_exists('specs', $row))
+            ? array('material' => bt_cat_derive_material($row)) : array()
     );
 }
 
@@ -412,14 +488,15 @@ function bt_cat_apply_attrs() {
     $t = bt_cat_table();
     if (!$wpdb->get_var("SHOW COLUMNS FROM $t LIKE 'bucket'")) return 0;   // columns not added yet
 
-    $rows = $wpdb->get_results("SELECT id, name, category, sizes, colors FROM $t", ARRAY_A);
+    $hasMat = (bool) $wpdb->get_var("SHOW COLUMNS FROM $t LIKE 'material'");
+    $rows = $wpdb->get_results("SELECT id, name, category, sizes, colors, description, specs FROM $t", ARRAY_A);
     if (!is_array($rows)) return 0;
 
     $groups = array();   // serialized attrs => [ids]
     foreach ($rows as $r) {
         $a = bt_cat_derive_attrs($r);
         $k = $a['bucket'] . '|' . $a['aud'] . '|' . $a['neck'] . '|' . $a['sleeve'] . '|'
-           . $a['closure'] . '|' . $a['size_set'] . '|' . $a['color_fams'];
+           . $a['closure'] . '|' . $a['size_set'] . '|' . $a['color_fams'] . '|' . $a['material'];
         if (!isset($groups[$k])) $groups[$k] = array('attrs' => $a, 'ids' => array());
         $groups[$k]['ids'][] = (int) $r['id'];
     }
@@ -432,10 +509,10 @@ function bt_cat_apply_attrs() {
             $in = implode(',', array_map('intval', $chunk));   // ints only -> safe to inline
             $wpdb->query($wpdb->prepare(
                 "UPDATE $t SET bucket=%s, aud=%s, neck=%s, sleeve=%s, closure=%s,
-                        size_set=%s, color_fams=%s
+                        size_set=%s, color_fams=%s" . ($hasMat ? ", material=%s" : '') . "
                  WHERE id IN ($in)",
-                $a['bucket'], $a['aud'], $a['neck'], $a['sleeve'], $a['closure'],
-                $a['size_set'], $a['color_fams']
+                array_merge(array($a['bucket'], $a['aud'], $a['neck'], $a['sleeve'], $a['closure'],
+                    $a['size_set'], $a['color_fams']), $hasMat ? array($a['material']) : array())
             ));
             $n += count($chunk);
         }
