@@ -71,6 +71,7 @@
   root.innerHTML =
     '<section class="hero"><div class="wrap herorow">' +
       '<h1>Browse Products. Get a <span>Quote.</span></h1>' +
+      '<div class="csearch">\uD83D\uDD0D<input id="btSearch" placeholder="Search style # or product\u2026"></div>' +
       '<button id="btFab" class="btcat-fab">My Quote \u00b7 <span id="btBadge">0</span></button>' +
     '</div></section>' +
     '<div class="wrap"><div class="catnav">' +
@@ -86,7 +87,6 @@
         '<div class="cm"><span class="cmlabel">Colors <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mColors"></div></div>' +
         '<div class="cm"><span class="cmlabel">Quality <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mQuality"></div></div>' +
       '</nav>' +
-      '<div class="csearch">\uD83D\uDD0D<input id="btSearch" placeholder="Search style # or product\u2026"></div>' +
     '</div></div>' +
     '<div class="wrap shell">' +
       '<aside class="btside" id="btSide">' +

@@ -94,3 +94,11 @@
 #btcat-root .cm.dim .cmpop{display:none!important}
 #btcat-root .fsec.dim .fhead{opacity:.45}
 #btcat-root .fnone{font-size:13px;color:var(--muted);padding:4px 0}
+
+/* Search lives in the title row; the filter row gets the full width and
+   spreads its ten menus edge to edge (tighter labels so they fit one line). */
+#btcat-root .herorow .csearch{flex:1;max-width:420px;min-width:180px;margin:0 auto}
+#btcat-root .catnav{display:block}
+#btcat-root .cmenus{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px;margin-left:0}
+#btcat-root .cm .cmlabel{padding:8px 8px;letter-spacing:.5px}
+@media(max-width:860px){#btcat-root .herorow{flex-wrap:wrap}#btcat-root .herorow .csearch{order:3;flex-basis:100%;max-width:none}#btcat-root .cmenus{justify-content:center}}

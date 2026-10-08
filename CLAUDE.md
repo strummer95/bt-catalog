@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.29.3**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.29.4**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
