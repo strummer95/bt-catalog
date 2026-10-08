@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.29.2**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.29.3**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -158,8 +158,10 @@ A category filter must read the derived `bucket` column, never expand to LIKE su
 T-Shirts while the count disagreed.
 
 One `GROUPS` config in `catalog.js` drives both the header dropdowns and the sidebar rail,
-so a filter can't exist in one and not the other. A group renders only with 2+ options, or
-exactly one that is currently selected.
+so a filter can't exist in one and not the other. Since 0.29.3 a group is **never hidden**: a narrow
+search used to leave every group under 2 options and blank the whole bar and rail. A group with zero
+options for the current results gets class `dim` (greyed, menu won't open, rail says "None in these
+results").
 
 Quality tiers (`tiers.php`) are a static style-number map from the SanMar Navigator guides,
 647 styles, matched across all suppliers by normalized style number. **Nike is intentionally

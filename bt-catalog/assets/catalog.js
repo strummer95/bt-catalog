@@ -170,10 +170,10 @@
     LBL[g.key] = {};
     for (i = 0; i < items.length; i++) LBL[g.key][items[i].k] = items[i].v;
 
-    // A group is worth showing when it can actually change the result set:
-    // two or more options, or one that's currently selected (so it can be
-    // switched off from the rail as well as the chip).
-    var show = items.length > 1 || (items.length === 1 && F[g.key] !== '');
+    // Every group stays on screen so the filter bar and rail don't vanish
+    // under a narrow search (one result left every group with < 2 options
+    // and hid them all). A group with nothing for these results is dimmed.
+    var none = items.length === 0;
 
     var menuHtml, sideHtml;
     if (g.cols) {
@@ -193,15 +193,15 @@
                (g.swatch ? famDot(x.k) : '') + esc(x.v) + countTag(x.n) + '</div>';
       }).join('') + '</div></div>';
     }
-    sideHtml = items.map(function(x){
+    sideHtml = none ? '<div class="fnone">None in these results</div>' : items.map(function(x){
       return '<div class="fitem' + (g.swatch ? ' fcolor' : '') + '" data-f="' + g.key + '" data-v="' + esc(x.k) + '">' +
              (g.swatch ? famDot(x.k) : '') + esc(x.v) + countTag(x.n) + '</div>';
     }).join('');
 
     el = document.getElementById(g.menu);
-    if (el) { el.innerHTML = menuHtml; var cm = hostOf(el, '.cm'); if (cm) cm.style.display = show ? '' : 'none'; }
+    if (el) { el.innerHTML = menuHtml; var cm = hostOf(el, '.cm'); if (cm) { cm.style.display = ''; cm.classList.toggle('dim', none); } }
     el = document.getElementById(g.side);
-    if (el) { el.innerHTML = sideHtml; var fs = hostOf(el, '.fsec'); if (fs) fs.style.display = show ? '' : 'none'; }
+    if (el) { el.innerHTML = sideHtml; var fs = hostOf(el, '.fsec'); if (fs) { fs.style.display = ''; fs.classList.toggle('dim', none); } }
   }
 
   // Facets are recomputed against the ACTIVE filters, which is what makes

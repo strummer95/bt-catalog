@@ -87,3 +87,10 @@
    whole row and squeezed the chips to zero width. */
 #btcat-root .tbright .sort{flex:0 0 auto;width:auto!important;max-width:220px}
 #btcat-root .tbright #btActive{flex:0 1 auto}
+
+/* Groups never hide; one with no options for the current results is dimmed. */
+#btcat-root .cm.dim .cmlabel{opacity:.4;cursor:default}
+#btcat-root .cm.dim:hover .cmlabel{background:none;color:var(--navy)}
+#btcat-root .cm.dim .cmpop{display:none!important}
+#btcat-root .fsec.dim .fhead{opacity:.45}
+#btcat-root .fnone{font-size:13px;color:var(--muted);padding:4px 0}
