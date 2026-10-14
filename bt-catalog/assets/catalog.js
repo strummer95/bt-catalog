@@ -462,15 +462,24 @@
     }).join('');
   }
 
+  /* Sizes to show/edit/send for a quote line: the product's own size list
+     (6XL, youth, talls, OSFA...), not the fixed XS-5XL row, which dropped
+     every other size from the drawer and from the quote email. */
+  function lineSizes(l){
+    var base = (l.sizeList && l.sizeList.length) ? l.sizeList.slice() : SIZES_ORDER.slice();
+    Object.keys(l.sizes || {}).forEach(function(z){ if (base.indexOf(z) < 0) base.push(z); });
+    return base;
+  }
+
   function addToQuote(){
-    var sizes = {};
-    document.querySelectorAll('#btSizes input').forEach(function(i){ var v=parseInt(i.value||0,10); if(v>0) sizes[i.getAttribute('data-sz')]=v; });
+    var sizes = {}, sizeList = [];
+    document.querySelectorAll('#btSizes input').forEach(function(i){ var z=i.getAttribute('data-sz'), v=parseInt(i.value||0,10); sizeList.push(z); if(v>0) sizes[z]=v; });
     var qty = Object.keys(sizes).reduce(function(a,k){ return a+sizes[k]; }, 0);
     if (qty === 0){ alert('Add at least one size quantity.'); return; }
     var c = selColor();
     var pr = colorPrice(c);
     quote.push({ id:current.id, supplier:current.supplier, brand:current.brand, name:current.name||current.style, style:current.style,
-      color:currentColor||'', img:c.img||'', price:pr.price, sizes:sizes, qty:qty });
+      color:currentColor||'', img:c.img||'', price:pr.price, sizes:sizes, sizeList:sizeList, qty:qty });
     updateBadge(); closePDP(); dStep=1; openDrawer();
   }
 
@@ -524,8 +533,8 @@
     var b = document.getElementById('btDbody');
     if (!quote.length){ b.innerHTML = '<p style="padding:24px;text-align:center;color:#8a8aa0">Your quote is empty. Add a garment from the catalog.</p>'; document.getElementById('btDfoot').innerHTML=''; return; }
     b.innerHTML = quote.map(function(l,idx){
-      var inputs = SIZES_ORDER.filter(function(z){return true;}).map(function(z){
-        return '<label class="qsz"><span>'+z+'</span><input type="number" min="0" value="'+(l.sizes[z]||'')+'" placeholder="0" data-i="'+idx+'" data-z="'+z+'"></label>';
+      var inputs = lineSizes(l).map(function(z){
+        return '<label class="qsz"><span>'+esc(z)+'</span><input type="number" min="0" value="'+(l.sizes[z]||'')+'" placeholder="0" data-i="'+idx+'" data-z="'+esc(z)+'"></label>';
       }).join('');
       var th = l.img ? '<img src="'+esc(l.img)+'" onerror="this.style.display=\'none\'">' : '';
       return '<div class="qline"><div class="th">'+th+'</div><div class="meta">' +
@@ -559,8 +568,8 @@
         }).join('');
     var qtyBlock = '<div class="secLab">Sizes &amp; quantity</div>' +
       quote.map(function(l,idx){
-        var inputs = SIZES_ORDER.map(function(z){
-          return '<label class="qsz"><span>'+z+'</span><input type="number" min="0" value="'+(l.sizes[z]||'')+'" placeholder="0" data-i="'+idx+'" data-z="'+z+'"></label>';
+        var inputs = lineSizes(l).map(function(z){
+          return '<label class="qsz"><span>'+esc(z)+'</span><input type="number" min="0" value="'+(l.sizes[z]||'')+'" placeholder="0" data-i="'+idx+'" data-z="'+esc(z)+'"></label>';
         }).join('');
         return '<div class="qline"><div class="meta"><div class="n">'+esc(l.brand)+' '+esc(l.name)+'</div><div class="s">'+supLabel(l.supplier)+'Style '+esc(l.style)+' \u00b7 '+esc(l.color)+'</div><div class="qsizes">'+inputs+'</div><div class="qsum" id="qsum'+idx+'">'+l.qty+' pcs \u00b7 '+money(l.price)+'/ea</div></div></div>';
       }).join('');
@@ -640,18 +649,22 @@
    * only shows "sent" once the server confirms the email went out.
    */
   function catalogSummary(d){
+    // One labelled line per detail, so color and sizes don't get lost inside
+    // a single long garment line in the quote email.
     var lines = quote.map(function(l){
-      var sz = SIZES_ORDER.filter(function(z){ return l.sizes[z]; })
+      var sz = lineSizes(l).filter(function(z){ return l.sizes[z]; })
         .map(function(z){ return z + ' x' + l.sizes[z]; }).join(', ');
-      return '- ' + [l.brand, l.name].filter(Boolean).join(' ') + ' (Style ' + l.style + ')'
-        + (l.color ? ' / ' + l.color : '')
-        + ' / ' + (sz || 'no sizes entered') + ' = ' + l.qty + ' pcs'
-        + ' / blank ' + money(l.price) + '/ea';
+      return '- ' + [l.brand, l.name].filter(Boolean).join(' ') + ' (Style ' + l.style + ')\n'
+        + '   Color: ' + (l.color || 'not chosen') + '\n'
+        + '   Sizes: ' + (sz || 'no sizes entered') + ' (' + l.qty + ' pcs)\n'
+        + '   Blank: ' + money(l.price) + '/ea';
     }).join('\n');
 
+    // Always name the method. Print used to send only "Locations: 1", so the
+    // email never said whether the job was printed or embroidered.
     var deco = (method==='emb')
-      ? 'Embroidery: ' + ({text:'Names / Text',logo:'Logo',hard:'Hard-to-handle'}[embType] || embType)
-      : 'Locations: ' + locs;
+      ? 'Decoration: EMBROIDERY - ' + ({text:'Names / Text',logo:'Logo',hard:'Hard-to-handle'}[embType] || embType)
+      : 'Decoration: PRINT - ' + locs + ' location' + (locs == 1 ? '' : 's') + '\nLocations: ' + locs;
 
     var price;
     if (!d || d.error || d.code) {

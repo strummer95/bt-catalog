@@ -6,7 +6,7 @@ decoration, send to the quote desk. No checkout. Retail is cost times markup; **
 never exposed to customers**.
 
 - Live: boomerts.com/catalog/ via the `[bt_catalog]` shortcode
-- Current version: **0.29.4**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
+- Current version: **0.29.5**. Constant `BT_CAT_VERSION`, function prefix `bt_cat_`.
 - Repo: `strummer95/bt-catalog`
 
 `HANDOFF.md` in this repo is a long historical record of how each feature was built and why.
@@ -192,6 +192,10 @@ Autoprice is cost times markup, rounded up to `.95`.
   `your-organization` / `your-phone` / `your-message`). Before that, Send only flipped the
   drawer to "sent" client-side and every catalog quote request was silently lost. Never
   show a success state the server has not confirmed.
+  0.29.5: `catalogSummary()` always writes `Decoration: PRINT - N locations` or `Decoration:
+  EMBROIDERY - <type>` (print used to send only `Locations: N`), and one `Color:` / `Sizes:` / `Blank:`
+  line per garment. Quote lines carry the product's own `sizeList`; `lineSizes()` drives the drawer
+  inputs and the email, since the fixed XS-5XL `SIZES_ORDER` dropped 6XL, youth and OSFA.
 - Verify Quick Quote price parity against the portal for a known combo, and decide whether
   `retail` should send the doubled retail (current) or raw cost. **Read the open
   `PRINT_TIERS` inversion in the bt-quote CLAUDE.md first.** Prices come from that engine,
