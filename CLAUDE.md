@@ -216,6 +216,15 @@ because it checks a signature inside `bt_cat_bridge_auth()`; unsigned requests g
 Cost must never leave through the public catalog routes, only through this signed one.
 This is PresStora reading from BT, not BT depending on PresStora.
 
+## Secrets (this repo is public)
+
+No key or password is ever written in this repo. `includes/secrets.php` reads each one from a
+wp-config.php constant first (`BT_CAT_SS_APIKEY`, `BT_CAT_SANMAR_PW`, `BT_CAT_BRIDGE_KEY`), else
+from the plugin option, which the admin pages save encrypted (`bt_cat_seal()`, keyed from the
+site's AUTH salts). A value saved before that is plain text and still reads until saved again.
+Saved keys are never echoed back into a form. `includes/updater.php` only accepts a
+`download_url` on `raw.githubusercontent.com/<update repo>/`.
+
 ## Not in any repo
 
 The spirit wear lead page (`[bt_spiritwear]`) and fundraiser page (`[bt_fundraiser]`) are

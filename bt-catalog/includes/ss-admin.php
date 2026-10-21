@@ -20,7 +20,9 @@ function bt_cat_ss_page() {
         $o = get_option('bt_cat_settings', array());
         if (!is_array($o)) $o = array();
         $o['ss_account'] = sanitize_text_field(wp_unslash($_POST['ss_account']));
-        $o['ss_apikey']  = sanitize_text_field(wp_unslash($_POST['ss_apikey']));
+        $newKey = trim(sanitize_text_field(wp_unslash($_POST['ss_apikey'] ?? '')));
+        if ($newKey !== '') $o['ss_apikey'] = bt_cat_seal($newKey);   // stored encrypted, see secrets.php
+        if (!empty($_POST['ss_apikey_clear'])) $o['ss_apikey'] = '';
         $o['markup']     = (float) $_POST['markup'];
         update_option('bt_cat_settings', $o);
         echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
@@ -130,7 +132,7 @@ function bt_cat_ss_page() {
     }
 
     $acct = esc_attr(bt_cat_opt('ss_account'));
-    $key  = esc_attr(bt_cat_opt('ss_apikey'));
+    $key  = bt_cat_ss_apikey();
     $mk   = esc_attr(bt_cat_opt('markup', '1.9'));
     $have_creds = ($acct !== '' && $key !== '');
     $prog = bt_cat_sync_progress();
@@ -152,7 +154,13 @@ function bt_cat_ss_page() {
                 </tr>
                 <tr>
                     <th scope="row"><label for="ss_apikey">S&amp;S API Key</label></th>
-                    <td><input id="ss_apikey" name="ss_apikey" type="text" value="<?php echo $key; ?>" class="regular-text" autocomplete="off">
+                    <td><?php if (bt_cat_secret_in_config('BT_CAT_SS_APIKEY')): ?>
+                        <p><em>Set in wp-config.php (BT_CAT_SS_APIKEY).</em></p>
+                        <?php else: ?>
+                        <input id="ss_apikey" name="ss_apikey" type="password" value="" class="regular-text" autocomplete="new-password"
+                               placeholder="<?php echo $key !== '' ? 'saved, leave blank to keep' : ''; ?>">
+                        <?php if ($key !== ''): ?><br><label><input type="checkbox" name="ss_apikey_clear" value="1"> Remove the saved key</label><?php endif; ?>
+                        <?php endif; ?>
                         <p class="description">From your S&amp;S Activewear account &rarr; API settings. Used only on this server.</p></td>
                 </tr>
                 <tr>

@@ -52,7 +52,7 @@ add_action('rest_api_init', function () {
 
 /** The shared secret, or '' when the bridge has not been turned on. */
 function bt_cat_bridge_key() {
-    return trim((string) bt_cat_opt('bridge_key', ''));
+    return bt_cat_secret('BT_CAT_BRIDGE_KEY', bt_cat_opt('bridge_key', ''));
 }
 
 /**

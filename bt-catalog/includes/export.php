@@ -39,7 +39,8 @@ add_action('rest_api_init', function () {
 });
 
 function bt_cat_export_handler(WP_REST_Request $req) {
-    $key = (string) $req->get_param('key');
+    // A header keeps the key out of server logs; ?key= stays for PresStora's importer.
+    $key = (string) ($req->get_header('x_bt_export_key') ?: $req->get_param('key'));
     if ($key === '' || !hash_equals(bt_cat_export_key(), $key)) {
         return new WP_REST_Response(array('ok' => false, 'error' => 'bad key'), 403);
     }
