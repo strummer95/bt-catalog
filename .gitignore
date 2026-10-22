@@ -1,0 +1,26 @@
+# Server-only and local files. This repo is public: secrets live in
+# wp-config.php constants or in encrypted WordPress options, never here.
+config.php
+*-config.php
+*-secrets.php
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.sql
+*.sql.gz
+*.bak
+*.log
+*.sqlite
+*.sqlite-*
+backups/
+backup*/
+.DS_Store
+node_modules/
+
+# Release zips are committed on purpose (bt-catalog-X.Y.Z.zip and bt-catalog.zip at the
+# repo root, see CLAUDE.md). Any other zip is not.
+*.zip
+!/bt-catalog.zip
+!/bt-catalog-[0-9]*.zip

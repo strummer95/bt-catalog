@@ -22,7 +22,7 @@ if (!defined('BT_SANMAR_WSDL_PRICE'))   define('BT_SANMAR_WSDL_PRICE',   'https:
 function bt_cat_sanmar_creds() {
     return array(
         'id'   => trim((string) get_option('bt_cat_sanmar_id', '')),
-        'pw'   => (string) get_option('bt_cat_sanmar_pw', ''),
+        'pw'   => bt_cat_sanmar_pw(),
         'cust' => trim((string) get_option('bt_cat_sanmar_cust', '')),
     );
 }
@@ -518,7 +518,7 @@ function bt_cat_sanmar_page() {
         update_option('bt_cat_sanmar_id', sanitize_text_field(wp_unslash($_POST['sanmar_id'] ?? '')));
         update_option('bt_cat_sanmar_cust', sanitize_text_field(wp_unslash($_POST['sanmar_cust'] ?? '')));
         if (isset($_POST['sanmar_pw']) && $_POST['sanmar_pw'] !== '') {
-            update_option('bt_cat_sanmar_pw', wp_unslash($_POST['sanmar_pw']));
+            update_option('bt_cat_sanmar_pw', bt_cat_seal(wp_unslash($_POST['sanmar_pw'])));   // stored encrypted, see secrets.php
         }
         echo '<div class="notice notice-success is-dismissible"><p>SanMar credentials saved.</p></div>';
     }

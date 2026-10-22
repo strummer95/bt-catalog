@@ -15,6 +15,7 @@ define('BT_CAT_URL', plugin_dir_url(__FILE__));
 define('BT_CAT_FILE', __FILE__);
 
 require_once BT_CAT_DIR . 'includes/db.php';
+require_once BT_CAT_DIR . 'includes/secrets.php';
 require_once BT_CAT_DIR . 'includes/tiers.php';
 require_once BT_CAT_DIR . 'includes/ingest.php';
 require_once BT_CAT_DIR . 'includes/sync.php';

@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) exit;
 /** base64("account:key") from saved settings, or '' if missing. */
 function bt_cat_ss_auth() {
     $acct = bt_cat_opt('ss_account');
-    $key  = bt_cat_opt('ss_apikey');
+    $key  = bt_cat_ss_apikey();
     if ($acct === '' || $key === '') return '';
     return base64_encode($acct . ':' . $key);
 }

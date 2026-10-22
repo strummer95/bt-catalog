@@ -46,11 +46,17 @@ function bt_cat_admin_page() {
         check_admin_referer('bt_cat_bridge');
         $o = get_option('bt_cat_settings', array());
         if (!is_array($o)) $o = array();
-        $o['bridge_key'] = trim(sanitize_text_field(wp_unslash($_POST['bridge_key'])));
+        $new = trim(sanitize_text_field(wp_unslash($_POST['bridge_key'] ?? '')));
+        $msg = 'Nothing changed.';
+        if (!empty($_POST['bridge_off'])) {
+            $o['bridge_key'] = '';
+            $msg = 'Bridge turned off.';
+        } elseif ($new !== '') {
+            $o['bridge_key'] = bt_cat_seal($new);   // stored encrypted, see secrets.php
+            $msg = 'Bridge key saved.';
+        }
         update_option('bt_cat_settings', $o);
-        echo '<div class="notice notice-success is-dismissible"><p>'
-           . ($o['bridge_key'] === '' ? 'Bridge turned off.' : 'Bridge key saved.')
-           . '</p></div>';
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($msg) . '</p></div>';
     }
 
     // Save update source (merge — preserves credentials).
@@ -88,7 +94,7 @@ function bt_cat_admin_page() {
     $rows = (int) $wpdb->get_var("SELECT COUNT(*) FROM $t");
 
     $acct = esc_attr(bt_cat_opt('ss_account'));
-    $key  = esc_attr(bt_cat_opt('ss_apikey'));
+    $key  = bt_cat_ss_apikey();
     $mk   = esc_attr(bt_cat_opt('markup', '1.9'));
     $have_creds = ($acct !== '' && $key !== '');
     ?>
@@ -227,8 +233,8 @@ function bt_cat_admin_page() {
             Sport-Tek, Port &amp; Company, District, New Era &mdash; which S&amp;S does not sell.
             Rather than PresStora talking to SanMar (which would need SOAP on that server and its
             own IP whitelisted), it reads them from here, where they already are.<br>
-            Paste the same key into PresStora under Creator &rarr; Catalog. <strong>Blank turns the
-            bridge off</strong>, which is how every other install stays.
+            Paste the same key into PresStora under Creator &rarr; Catalog. With no key saved the
+            bridge is off, which is how every other install stays.
         </p>
         <p class="description">
             This is not the public catalog route. That one deliberately never sends cost; this one
@@ -240,14 +246,23 @@ function bt_cat_admin_page() {
                 <tr>
                     <th scope="row"><label for="bridge_key">Bridge key</label></th>
                     <td>
-                        <input name="bridge_key" id="bridge_key" type="text" class="regular-text code"
-                               value="<?php echo esc_attr(bt_cat_opt('bridge_key')); ?>"
+                        <?php if (bt_cat_secret_in_config('BT_CAT_BRIDGE_KEY')): ?>
+                            <p><em>Set in wp-config.php (BT_CAT_BRIDGE_KEY).</em></p>
+                        <?php else: ?>
+                        <p><?php echo bt_cat_bridge_key() !== ''
+                            ? '<strong style="color:#1a7f37">A key is saved.</strong> It is stored encrypted and not shown again; type a new one to replace it.'
+                            : '<strong>No key saved, the bridge is off.</strong>'; ?></p>
+                        <input name="bridge_key" id="bridge_key" type="text" class="regular-text code" value="" autocomplete="off"
                                placeholder="<?php echo esc_attr(bin2hex(random_bytes(16))); ?>">
                         <p class="description">
                             Any long random string. The box shows a fresh suggestion each time this
-                            page loads &mdash; copy it, save it here, paste it into PresStora.
+                            page loads: copy it, paste it into PresStora, then save it here.
                             The key itself never travels over the wire; only a signature made with it does.
                         </p>
+                        <?php if (bt_cat_bridge_key() !== ''): ?>
+                            <label><input type="checkbox" name="bridge_off" value="1"> Turn the bridge off (forget the saved key)</label>
+                        <?php endif; ?>
+                        <?php endif; ?>
                     </td>
                 </tr>
             </table>
