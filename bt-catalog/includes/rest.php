@@ -565,7 +565,9 @@ function bt_cat_cat_buckets() {
     // "Performance Tee" all collapse to "T-Shirts". Hoodies/sweatshirts are
     // checked before T-Shirts so a "Crewneck Sweatshirt" doesn't land in tees.
     return array(
-        'Quarter-Zips & Layering' => array('1/4 zip', '1/4-zip', 'quarter zip', 'quarter-zip', 'layering'),
+        // Half-zips were missing here while the closure column already knew them.
+        'Quarter-Zips & Layering' => array('1/4 zip', '1/4-zip', 'quarter zip', 'quarter-zip',
+                                           '1/2 zip', '1/2-zip', 'half zip', 'half-zip', 'layering'),
         'Polos'                   => array('polo'),
         'Tanks'                   => array('tank', 'racerback'),
         'Hoodies & Fleece'        => array('hoodie', 'sweatshirt', 'fleece', 'pullover'),

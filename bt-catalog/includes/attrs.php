@@ -136,6 +136,19 @@ function bt_cat_attr_hay($row) {
     );
 }
 
+/**
+ * What a quarter- or half-zip is called, in one place.
+ *
+ * The closure column and the category bucket both have to agree about this.
+ * They used to each carry their own list and the bucket's was short two
+ * spellings, so a half-zip could read closure=quarterzip while its bucket
+ * said something else.
+ */
+function bt_cat_attr_qzip_needles() {
+    return array('1/4 zip', '1/4-zip', 'quarter zip', 'quarter-zip',
+                 '1/2 zip', '1/2-zip', 'half zip', 'half-zip');
+}
+
 /** True if any needle appears in the haystack. */
 function bt_cat_attr_has($hay, $needles) {
     foreach ((array) $needles as $n) { if (strpos($hay, $n) !== false) return true; }
@@ -172,6 +185,19 @@ function bt_cat_derive_aud($row) {
  * buckets so this never drifts from the Categories filter.
  */
 function bt_cat_attr_bucket($row) {
+    $hay = bt_cat_attr_hay($row);
+
+    // A quarter- or half-zip is the most specific garment type we bucket on,
+    // which is why bt_cat_cat_buckets() lists it first. That precedence only
+    // ever applied to the supplier's own category string though, and suppliers
+    // put the zip in the TITLE: S&S files Gildan 18810, "Unisex Heavy Blend
+    // Quarter-Zip Sweatshirt", under category "Fleece - Core - Crew". Reading
+    // the category alone matched "fleece" and sent it to Hoodies & Fleece, so
+    // Quarter-Zips & Layering returned nothing for it - while the row's own
+    // closure column already said quarterzip, from this same wording. The
+    // title decides first.
+    if (bt_cat_attr_has($hay, bt_cat_attr_qzip_needles())) return 'Quarter-Zips & Layering';
+
     $cat = isset($row['category']) ? $row['category'] : '';
     $b   = function_exists('bt_cat_norm_category') ? bt_cat_norm_category($cat) : '';
     if ($b !== '' && function_exists('bt_cat_cat_buckets') && array_key_exists($b, bt_cat_cat_buckets())) return $b;
@@ -179,7 +205,6 @@ function bt_cat_attr_bucket($row) {
     // ("Long Sleeve") comes back raw and became its own category, so a long
     // sleeve tee filed there was never a T-Shirt and never got a sleeve.
     // Either way, fall back to the title before keeping the raw label.
-    $hay = bt_cat_attr_hay($row);
     if (bt_cat_attr_has($hay, array('hoodie', 'sweatshirt', 'fleece'))) return 'Hoodies & Fleece';
     if (bt_cat_attr_has($hay, array('polo')))                          return 'Polos';
     if (bt_cat_attr_has($hay, array('tank')))                          return 'Tanks';
@@ -225,6 +250,10 @@ function bt_cat_derive_neck($row, $bucket) {
     if (bt_cat_attr_word($hay, array('hood')))                                       return 'hooded';
     if (bt_cat_attr_has($hay, array('racerback', 'racer back')))                      return 'tank';
     if (bt_cat_attr_has($hay, array('crewneck', 'crew neck', 'crew-neck')))           return 'crew';
+    // S&S writes the word on its own ("Fleece - Core - Crew"). Honour it, so a
+    // quarter-zip the supplier calls a crew keeps its collar instead of taking
+    // the mock-neck default below just because its bucket changed.
+    if (bt_cat_attr_word($hay, array('crew')))                                       return 'crew';
 
     // Otherwise the garment type implies it.
     switch ($bucket) {
@@ -276,8 +305,7 @@ function bt_cat_derive_closure($row, $bucket) {
     if (!bt_cat_attr_closable($bucket)) return '';
     $hay = bt_cat_attr_hay($row);
 
-    if (bt_cat_attr_has($hay, array('1/4 zip', '1/4-zip', 'quarter zip', 'quarter-zip',
-                                    '1/2 zip', '1/2-zip', 'half zip', 'half-zip'))) return 'quarterzip';
+    if (bt_cat_attr_has($hay, bt_cat_attr_qzip_needles()))                          return 'quarterzip';
     if (bt_cat_attr_has($hay, array('full zip', 'full-zip', 'fullzip', 'zip up', 'zip-up',
                                     'zip front', 'zip-front', 'zip hood')))         return 'fullzip';
     if (bt_cat_attr_word($hay, array('snap')))                                      return 'snap';
