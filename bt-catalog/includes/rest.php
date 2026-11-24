@@ -47,7 +47,7 @@ function bt_cat_family_terms($fam) {
  * and the facet counts read from this — same input, same interpretation.
  */
 function bt_cat_read_params($req) {
-    return array(
+    $a = array(
         's'        => sanitize_text_field((string) $req->get_param('s')),
         'brand'    => sanitize_text_field((string) $req->get_param('brand')),
         'category' => bt_cat_bucket_param((string) $req->get_param('category')),
@@ -59,7 +59,15 @@ function bt_cat_read_params($req) {
         'material' => bt_cat_attr_key('material', (string) $req->get_param('material')),
         'size'     => bt_cat_size_canon((string) $req->get_param('size')),
         'quality'  => bt_cat_quality_key((string) $req->get_param('quality')),
+        'pmin'     => bt_cat_price_param($req->get_param('pmin')),
+        'pmax'     => bt_cat_price_param($req->get_param('pmax')),
     );
+    // A dragged slider can hand back a min above its max. Swap rather than
+    // return nothing, which reads as "no styles match" for a legal range.
+    if ($a['pmin'] !== '' && $a['pmax'] !== '' && (float) $a['pmin'] > (float) $a['pmax']) {
+        $t = $a['pmin']; $a['pmin'] = $a['pmax']; $a['pmax'] = $t;
+    }
+    return $a;
 }
 
 /* Long Sleeve Tees is a pseudo-category like Performance: T-Shirts bucket plus
@@ -97,6 +105,33 @@ function bt_cat_params_empty($p) {
  *
  * Returns array('sql' => "...", 'args' => array()).
  */
+/**
+ * The effective customer price, in SQL. One definition, because three things
+ * have to agree about it: the price SORT, the price FILTER, and the min/max
+ * the slider is drawn from. If they ever disagree, a style sorts into a range
+ * the filter then excludes.
+ *
+ * Override wins; else an active supplier sale prices at autoprice(sale_cost);
+ * else the stored auto retail. Autoprice = 2x rounded up to the nearest .95.
+ * Mirrors bt_cat_price_pair() in PHP.
+ */
+function bt_cat_price_sql() {
+    return "CASE
+        WHEN retail_override IS NOT NULL AND retail_override > 0 THEN retail_override
+        WHEN sale_cost > 0 AND sale_cost < cost THEN FLOOR(2*sale_cost) + IF(FLOOR(2*sale_cost) + 0.95 >= 2*sale_cost - 0.0001, 0.95, 1.95)
+        ELSE retail
+    END";
+}
+
+/** A price bound from the query string: '' when absent or not a sane number. */
+function bt_cat_price_param($raw) {
+    if ($raw === null || $raw === '') return '';
+    if (!is_numeric($raw)) return '';
+    $v = round((float) $raw, 2);
+    if ($v < 0 || $v > 100000) return '';
+    return (string) $v;
+}
+
 function bt_cat_filter_where($p, $skip = '') {
     global $wpdb;
     $where = array('detail_done=1', 'active=1');
@@ -151,6 +186,14 @@ function bt_cat_filter_where($p, $skip = '') {
     if ($skip !== 'quality' && $p['quality'] !== '') {
         $where[] = "tier = %s";
         $args[]  = $p['quality'];
+    }
+    // Price range. Skipped as one filter ('price'), so the slider's own ends
+    // are computed from everything EXCEPT itself - otherwise dragging it in
+    // would shrink the track under your fingers.
+    if ($skip !== 'price') {
+        $eff = bt_cat_price_sql();
+        if ($p['pmin'] !== '') { $where[] = "$eff >= %f"; $args[] = (float) $p['pmin']; }
+        if ($p['pmax'] !== '') { $where[] = "$eff <= %f"; $args[] = (float) $p['pmax']; }
     }
 
     return array('sql' => implode(' AND ', $where), 'args' => $args);
@@ -249,11 +292,7 @@ function bt_cat_rest_list($req) {
     // Effective customer price, sale-aware (SQL mirror of bt_cat_price_pair):
     // override wins; else an active supplier sale prices at autoprice(sale_cost);
     // else the stored auto retail. Autoprice = 2x rounded up to the nearest .95.
-    $eff = "CASE
-        WHEN retail_override IS NOT NULL AND retail_override > 0 THEN retail_override
-        WHEN sale_cost > 0 AND sale_cost < cost THEN FLOOR(2*sale_cost) + IF(FLOOR(2*sale_cost) + 0.95 >= 2*sale_cost - 0.0001, 0.95, 1.95)
-        ELSE retail
-    END";
+    $eff = bt_cat_price_sql();
     $sortSql = '';
     switch ($sort) {
         case 'price_asc':  $sortSql = "$eff ASC, brand ASC, style_no ASC";  break;
@@ -539,7 +578,25 @@ function bt_cat_rest_facets($req) {
     foreach (bt_cat_quality_labels() as $label) $qualLabels[bt_cat_quality_key($label)] = $label;
     $quals = bt_cat_facet_out($tierCounts, array_keys($qualLabels), $qualLabels);
 
+    // The slider's ends: the real cheapest and dearest style under every OTHER
+    // active filter. Computed with $skip='price' so the track does not shrink
+    // to the handles the moment you move them.
+    $wpp  = bt_cat_filter_where($p, 'price');
+    $peff = bt_cat_price_sql();
+    $psq  = "SELECT MIN($peff) mn, MAX($peff) mx FROM $t WHERE {$wpp['sql']}";
+    $prow = $wpp['args'] ? $wpdb->get_row($wpdb->prepare($psq, $wpp['args']), ARRAY_A)
+                         : $wpdb->get_row($psq, ARRAY_A);
+    $pmn = ($prow && $prow['mn'] !== null) ? (float) $prow['mn'] : 0.0;
+    $pmx = ($prow && $prow['mx'] !== null) ? (float) $prow['mx'] : 0.0;
+    // Whole dollars outward, so the handles always reach the real extremes.
+    $price = array(
+        'min' => (int) floor($pmn),
+        'max' => (int) ceil($pmx),
+    );
+    if ($price['max'] <= $price['min']) $price['max'] = $price['min'] + 1;
+
     $out = array(
+        'price'      => $price,
         'brands'     => $brands,
         'categories' => $cats,
         'fits'       => $attr['aud'],

@@ -102,3 +102,58 @@
 #btcat-root .cmenus{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px;margin-left:0}
 #btcat-root .cm .cmlabel{padding:8px 8px;letter-spacing:.5px}
 @media(max-width:860px){#btcat-root .herorow{flex-wrap:wrap}#btcat-root .herorow .csearch{order:3;flex-basis:100%;max-width:none}#btcat-root .cmenus{justify-content:center}}
+
+/* ---------- price range filter ----------
+   Two overlaid <input type=range> give the familiar two-handle slider while
+   staying real form controls: Tab reaches them, arrow keys nudge them, and a
+   screen reader announces each one. The track itself ignores the pointer and
+   only the thumbs take it, otherwise the upper input covers the lower one and
+   the minimum handle cannot be grabbed. */
+#btcat-root .prng { padding: 4px 2px 2px; }
+#btcat-root .prngout {
+  font-weight: 700; font-size: 15px; color: #27267e; text-align: center;
+  margin-bottom: 10px; letter-spacing: .2px;
+}
+#btcat-root .prngtrack { position: relative; height: 30px; margin: 0 10px 6px; }
+#btcat-root .prngtrack::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 13px; height: 4px;
+  background: #ddd9ee; border-radius: 2px;
+}
+#btcat-root .prngfill {
+  position: absolute; top: 13px; height: 4px; background: #e535ab; border-radius: 2px;
+}
+#btcat-root .prngin {
+  position: absolute; left: 0; top: 0; width: 100%; height: 30px; margin: 0;
+  background: none; -webkit-appearance: none; appearance: none; pointer-events: none;
+}
+#btcat-root .prngin:focus { outline: none; }
+#btcat-root .prngin::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 3px solid #27267e; cursor: grab;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+#btcat-root .prngin::-moz-range-thumb {
+  pointer-events: auto; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 3px solid #27267e; cursor: grab;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+#btcat-root .prngin:focus-visible::-webkit-slider-thumb { border-color: #e535ab; box-shadow: 0 0 0 3px rgba(229,53,171,.35); }
+#btcat-root .prngin:focus-visible::-moz-range-thumb     { border-color: #e535ab; box-shadow: 0 0 0 3px rgba(229,53,171,.35); }
+#btcat-root .prngin::-moz-range-track { background: none; }
+
+#btcat-root .prngbox { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+#btcat-root .prnglbl {
+  flex: 1 1 78px; min-width: 0; font-size: 12px; color: #6b6a92;
+  display: flex; flex-direction: column; gap: 3px;
+}
+#btcat-root .prngnum {
+  width: 100%; box-sizing: border-box; font-size: 15px; color: #27267e;
+  padding: 7px 8px; border: 1px solid #ccc8e0; border-radius: 4px; background: #fff;
+}
+#btcat-root .prngnum:focus { outline: 2px solid #e535ab; outline-offset: -1px; border-color: #e535ab; }
+#btcat-root .prngclr {
+  flex: 0 0 auto; font-size: 13px; color: #27267e; background: #fff;
+  border: 1px solid #ccc8e0; border-radius: 4px; padding: 8px 12px; cursor: pointer;
+}
+#btcat-root .prngclr:hover { border-color: #e535ab; color: #e535ab; }

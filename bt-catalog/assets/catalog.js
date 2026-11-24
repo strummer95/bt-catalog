@@ -8,7 +8,8 @@
     ['Red','#b3132a'],['Green','#1f7a44'],['Yellow','#e8a417'],['Orange','#e8601c'],
     ['Pink','#e535ab'],['Purple','#5b2a86'],['Neutral','#d8c6a0']];
 
-  var F = { s:'', brand:'', category:'', fit:'', neck:'', sleeve:'', closure:'', material:'', size:'', color:'', quality:'', sort:'', page:1 };
+  var F = { s:'', brand:'', category:'', fit:'', neck:'', sleeve:'', closure:'', material:'', size:'', color:'', quality:'', pmin:'', pmax:'', sort:'', page:1 };
+  var priceBounds = { min:0, max:0 };   // the track's ends, from the facets
   var current = null, currentColor = null, curPid = null;
 
   /* ---------- shareable URL state ---------- */
@@ -28,6 +29,8 @@
     if (F.size)     q.push('size=' + encodeURIComponent(F.size));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
+    if (F.pmin !== '') q.push('pmin=' + encodeURIComponent(F.pmin));
+    if (F.pmax !== '') q.push('pmax=' + encodeURIComponent(F.pmax));
     if (F.sort)     q.push('sort=' + encodeURIComponent(F.sort));
     if (F.page > 1) q.push('pg=' + F.page);
     if (curPid)     q.push('pid=' + encodeURIComponent(curPid));
@@ -48,6 +51,8 @@
     F.size     = p.get('size') || '';
     F.color    = p.get('color') || '';
     F.quality  = p.get('quality') || '';
+    F.pmin     = p.get('pmin') || '';
+    F.pmax     = p.get('pmax') || '';
     F.sort     = p.get('sort') || '';
     F.page     = parseInt(p.get('pg') || '1', 10) || 1;
     return p.get('pid');
@@ -86,6 +91,7 @@
         '<div class="cm"><span class="cmlabel">Size <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mSize"></div></div>' +
         '<div class="cm"><span class="cmlabel">Colors <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mColors"></div></div>' +
         '<div class="cm"><span class="cmlabel">Quality <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mQuality"></div></div>' +
+        '<div class="cm"><span class="cmlabel">Price <span class="cmcaret">\u25be</span></span><div class="cmpop mega-pop" id="mPrice"></div></div>' +
       '</nav>' +
     '</div></div>' +
     '<div class="wrap shell">' +
@@ -99,6 +105,7 @@
         '<div class="fsec collapsed"><div class="fhead">Size</div><div class="fbody fsizes" id="fSize"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Colors</div><div class="fbody fcolors" id="fColors"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Brands</div><div class="fbody fscroll" id="fBrands"></div></div>' +
+        '<div class="fsec collapsed"><div class="fhead">Price</div><div class="fbody" id="fPrice"></div></div>' +
         '<div class="fsec collapsed"><div class="fhead">Quality</div><div class="fbody" id="fQuality"></div></div>' +
       '</aside>' +
       '<main>' +
@@ -204,6 +211,100 @@
     if (el) { el.innerHTML = sideHtml; var fs = hostOf(el, '.fsec'); if (fs) { fs.style.display = ''; fs.classList.toggle('dim', none); } }
   }
 
+  /* ---------- price range ----------
+     Not a GROUPS entry: every other filter is one value chosen from a list of
+     chips, this one is two numbers over a continuous range, so it has its own
+     markup and its own render. Two overlaid range inputs give the familiar
+     two-handle slider while staying real <input> elements, so it is keyboard
+     operable and screen readers announce it. The boxes underneath take an
+     exact figure, because a slider cannot hit $18.95 reliably. */
+  function priceLo(){ return F.pmin !== '' ? Math.max(priceBounds.min, parseFloat(F.pmin)) : priceBounds.min; }
+  function priceHi(){ return F.pmax !== '' ? Math.min(priceBounds.max, parseFloat(F.pmax)) : priceBounds.max; }
+
+  function priceHtml(idp){
+    var lo = priceLo(), hi = priceHi(), mn = priceBounds.min, mx = priceBounds.max;
+    var span = (mx - mn) || 1;
+    var lpc = ((lo - mn) / span) * 100, hpc = ((hi - mn) / span) * 100;
+    return '' +
+      '<div class="prng">' +
+        '<div class="prngout">' + money(lo) + ' \u2013 ' + money(hi) + (hi >= mx ? '+' : '') + '</div>' +
+        '<div class="prngtrack">' +
+          '<div class="prngfill" style="left:' + lpc + '%;right:' + (100 - hpc) + '%"></div>' +
+          '<input type="range" class="prngin prnglo" id="' + idp + 'Lo" aria-label="Minimum price" min="' + mn + '" max="' + mx + '" step="1" value="' + lo + '">' +
+          '<input type="range" class="prngin prnghi" id="' + idp + 'Hi" aria-label="Maximum price" min="' + mn + '" max="' + mx + '" step="1" value="' + hi + '">' +
+        '</div>' +
+        '<div class="prngbox">' +
+          '<label class="prnglbl">Min <input type="number" class="prngnum" id="' + idp + 'NumLo" inputmode="decimal" min="' + mn + '" max="' + mx + '" step="0.01" value="' + lo.toFixed(2) + '"></label>' +
+          '<label class="prnglbl">Max <input type="number" class="prngnum" id="' + idp + 'NumHi" inputmode="decimal" min="' + mn + '" max="' + mx + '" step="0.01" value="' + hi.toFixed(2) + '"></label>' +
+          '<button type="button" class="prngclr" id="' + idp + 'Clr">Reset</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // Commit on change/blur, never on input: every commit refetches the grid and
+  // the facets, and firing that per pixel of drag would hammer the server.
+  function bindPrice(idp){
+    var lo  = document.getElementById(idp + 'Lo');
+    var hi  = document.getElementById(idp + 'Hi');
+    var nlo = document.getElementById(idp + 'NumLo');
+    var nhi = document.getElementById(idp + 'NumHi');
+    var clr = document.getElementById(idp + 'Clr');
+    if (!lo || !hi) return;
+
+    function commit(a, b){
+      var mn = priceBounds.min, mx = priceBounds.max;
+      a = isFinite(a) ? Math.min(Math.max(a, mn), mx) : mn;
+      b = isFinite(b) ? Math.min(Math.max(b, mn), mx) : mx;
+      if (a > b) { var t = a; a = b; b = t; }
+      // At the ends it is not a filter: leave it out so the URL stays clean
+      // and bt_cat_params_empty() still sees an unfiltered catalog.
+      F.pmin = (a <= mn) ? '' : String(a);
+      F.pmax = (b >= mx) ? '' : String(b);
+      F.page = 1;
+      closeMenus(); renderActive(); syncURL(); loadGrid(); loadFacets();
+    }
+    // While dragging, move only the readout and the fill - no requests.
+    function preview(){
+      var a = parseFloat(lo.value), b = parseFloat(hi.value);
+      if (a > b) { var t = a; a = b; b = t; }
+      var mn = priceBounds.min, mx = priceBounds.max, span = (mx - mn) || 1;
+      var out = lo.parentNode.parentNode.querySelector('.prngout');
+      var fil = lo.parentNode.querySelector('.prngfill');
+      if (out) out.textContent = money(a) + '\u2013' + money(b) + (b >= mx ? '+' : '');
+      if (fil) { fil.style.left = (((a - mn) / span) * 100) + '%'; fil.style.right = (100 - ((b - mn) / span) * 100) + '%'; }
+      if (nlo) nlo.value = a.toFixed(2);
+      if (nhi) nhi.value = b.toFixed(2);
+    }
+    lo.addEventListener('input', preview);
+    hi.addEventListener('input', preview);
+    lo.addEventListener('change', function(){ commit(parseFloat(lo.value), parseFloat(hi.value)); });
+    hi.addEventListener('change', function(){ commit(parseFloat(lo.value), parseFloat(hi.value)); });
+    function numCommit(){ commit(parseFloat(nlo.value), parseFloat(nhi.value)); }
+    if (nlo) { nlo.addEventListener('change', numCommit);
+               nlo.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); numCommit(); } }); }
+    if (nhi) { nhi.addEventListener('change', numCommit);
+               nhi.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); numCommit(); } }); }
+    if (clr) clr.addEventListener('click', function(){
+      F.pmin = ''; F.pmax = ''; F.page = 1;
+      closeMenus(); renderActive(); syncURL(); loadGrid(); loadFacets();
+    });
+  }
+
+  function renderPrice(b){
+    if (b && typeof b.min === 'number' && typeof b.max === 'number' && b.max > b.min) {
+      priceBounds = { min: b.min, max: b.max };
+    }
+    var none = !(priceBounds.max > priceBounds.min);
+    [['mPrice','pm'], ['fPrice','pf']].forEach(function(pair){
+      var el = document.getElementById(pair[0]);
+      if (!el) return;
+      el.innerHTML = none ? '<div class="fnone">None in these results</div>' : priceHtml(pair[1]);
+      var host = hostOf(el, pair[0] === 'mPrice' ? '.cm' : '.fsec');
+      if (host) { host.style.display = ''; host.classList.toggle('dim', none); }
+      if (!none) bindPrice(pair[1]);
+    });
+  }
+
   // Facets are recomputed against the ACTIVE filters, which is what makes
   // impossible combinations disappear instead of returning "No styles match".
   function loadFacets(){
@@ -212,6 +313,7 @@
       if (seq !== facetSeq) return;              // a newer request already answered
       f = f || {};
       GROUPS.forEach(function(g){ renderGroup(g, (f[g.src] || [])); });
+      renderPrice(f.price);
       renderActive();                            // chips pick up real labels
       markActive();
     });
@@ -233,12 +335,15 @@
     if (F.size)     q.push('size=' + encodeURIComponent(F.size));
     if (F.color)    q.push('color=' + encodeURIComponent(F.color));
     if (F.quality)  q.push('quality=' + encodeURIComponent(F.quality));
+    if (F.pmin !== '') q.push('pmin=' + encodeURIComponent(F.pmin));
+    if (F.pmax !== '') q.push('pmax=' + encodeURIComponent(F.pmax));
     if (extra) q = q.concat(extra);
     return q.length ? ('?' + q.join('&')) : '';
   }
   function anyFilter(){
     return !!(F.s || F.brand || F.category || F.fit || F.neck || F.sleeve ||
-              F.closure || F.material || F.size || F.color || F.quality || F.sort);
+              F.closure || F.material || F.size || F.color || F.quality || F.sort ||
+              F.pmin !== '' || F.pmax !== '');
   }
 
   function setFilter(key, val){
@@ -246,7 +351,9 @@
     F.page = 1; closeMenus(); renderActive(); syncURL(); loadGrid(); loadFacets();
   }
   function clearFilter(key){
-    F[key] = ''; F.page = 1; renderActive(); syncURL(); loadGrid(); loadFacets();
+    if (key === 'price') { F.pmin = ''; F.pmax = ''; }
+    else F[key] = '';
+    F.page = 1; renderActive(); syncURL(); loadGrid(); loadFacets();
   }
   function chipLabel(key, val){
     return (LBL[key] && LBL[key][val]) ? LBL[key][val] : val;
@@ -257,6 +364,11 @@
       if (!F[g.key]) return;
       bits.push('<span class="chip" data-clear="' + g.key + '">' + esc(chipLabel(g.key, F[g.key])) + ' \u00d7</span>');
     });
+    if (F.pmin !== '' || F.pmax !== '') {
+      var plo = F.pmin !== '' ? money(parseFloat(F.pmin)) : money(priceBounds.min);
+      var phi = F.pmax !== '' ? money(parseFloat(F.pmax)) : money(priceBounds.max) + '+';
+      bits.push('<span class="chip" data-clear="price">' + plo + ' \u2013 ' + phi + ' \u00d7</span>');
+    }
     var el = document.getElementById('btActive');
     el.innerHTML = bits.join('');
     el.querySelectorAll('[data-clear]').forEach(function(c){
