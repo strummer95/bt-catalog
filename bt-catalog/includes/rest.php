@@ -439,7 +439,13 @@ function bt_cat_rest_item($req) {
         'style'  => $r['style_no'],
         'name'   => $r['name'],
         'cat'    => $r['category'],
-        'desc'   => $r['description'],
+        // Supplier-sourced free text (S&S/SanMar hand back raw, unsanitized
+        // HTML; EG-PRO's own importer already builds a clean <ul> of escaped
+        // bullets). The storefront renders this straight into innerHTML
+        // (catalog.js), so it must be safe HTML by the time it leaves the
+        // server — wp_kses_post() strips <script>/on*=/etc. while still
+        // allowing the basic markup suppliers and EG-PRO's bullets use.
+        'desc'   => wp_kses_post((string) $r['description']),
         'specs'  => $specs,
         'colors' => $cols,
         'sizes'  => array_values(array_filter(array_map('trim', explode(',', $r['sizes'])))),
